@@ -1,0 +1,23 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: sekha-config
+  namespace: sekha
+data:
+  config.toml: |
+    [server]
+    host = "0.0.0.0"
+    port = 8080
+    
+    [database]
+    url = "sqlite:///data/sekha.db"
+    
+    [chroma]
+    url = "http://chroma:8000"
+    
+    [ollama]
+    url = "http://ollama:11434"
+    embedding_model = "nomic-embed-text"
+    
+    [redis]
+    url = "redis://redis:6379/0"

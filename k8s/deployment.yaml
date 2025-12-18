@@ -1,0 +1,110 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sekha-core
+  namespace: sekha
+  labels:
+    app.kubernetes.io/name: sekha-core
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: sekha-core
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: sekha-core
+    spec:
+      containers:
+      - name: sekha-core
+        image: ghcr.io/sekha-ai/controller:latest
+        ports:
+        - containerPort: 8080
+        env:
+        - name: SEKHA_DATABASE_URL
+          value: "sqlite:///data/sekha.db"
+        - name: SEKHA_CHROMA_URL
+          value: "http://chroma:8000"
+        - name: SEKHA_OLLAMA_URL
+          value: "http://ollama:11434"
+        - name: RUST_LOG
+          value: "info"
+        volumeMounts:
+        - name: config
+          mountPath: /etc/sekha
+          readOnly: true
+        - name: data
+          mountPath: /data
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "1000m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 30
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 10
+          periodSeconds: 10
+      volumes:
+      - name: config
+        configMap:
+          name: sekha-config
+      - name: data
+        persistentVolumeClaim:
+          claimName: sekha-data
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sekha-bridge
+  namespace: sekha
+  labels:
+    app.kubernetes.io/name: sekha-bridge
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: sekha-bridge
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: sekha-bridge
+    spec:
+      containers:
+      - name: sekha-bridge
+        image: ghcr.io/sekha-ai/llm-bridge:latest
+        ports:
+        - containerPort: 5001
+        env:
+        - name: OLLAMA_HOST
+          value: "http://ollama:11434"
+        - name: REDIS_URL
+          value: "redis://redis:6379/0"
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "500m"
+          limits:
+            memory: "2Gi"
+            cpu: "2000m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 5001
+          initialDelaySeconds: 30
+          periodSeconds: 30
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 5001
+          initialDelaySeconds: 10
+          periodSeconds: 10

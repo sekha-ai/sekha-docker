@@ -1,15 +1,17 @@
+# ============================================
+# Stage 1: Builder
+# ============================================
 FROM rust:1.91-slim AS builder
 
 WORKDIR /app
 
-# Install dependencies
+# Install build dependencies only
 RUN apt-get update && apt-get install -y \
-    libpq-dev \
-    curl \
+    libssl-dev \
     pkg-config \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy manifests
+# Copy manifests first for better caching
 COPY Cargo.toml Cargo.lock ./
 
 # Copy source code
@@ -17,22 +19,28 @@ COPY src ./src
 COPY migration ./migration
 COPY migrations ./migrations
 
-# Build release binary
-RUN cargo build --release --bin sekha-controller
+# Build release binary (strip symbols)
+RUN cargo build --release --bin sekha-controller && \
+    strip target/release/sekha-controller
 
-# Runtime image
-FROM debian:bookworm-slim
+# ============================================
+# Stage 2: Runtime (Distroless)
+# ============================================
+FROM gcr.io/distroless/cc-debian12:nonroot
 
-RUN apt-get update && apt-get install -y \
-    ca-certificates \
-    libpq5 \
-    && rm -rf /var/lib/apt/lists/*
+# Copy binary from builder
+COPY --from=builder /app/target/release/sekha-controller /usr/local/bin/sekha-controller
 
-COPY --from=builder /app/target/release/sekha-controller /usr/local/bin/
+# Copy default config
+COPY config.example.toml /etc/sekha/config.toml
+
+# Use nonroot user (security)
+USER nonroot:nonroot
 
 EXPOSE 8080
 
+# Health check
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-    CMD curl -f http://localhost:8080/health || exit 1
+    CMD ["/usr/local/bin/sekha-controller", "--health-check"]
 
-CMD ["sekha-controller"]
+ENTRYPOINT ["/usr/local/bin/sekha-controller"]
