@@ -1,0 +1,29 @@
+# Docker
+.docker/
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Kubernetes (generated)
+k8s/*.generated.yaml
+helm/*/charts/
+helm/*/Chart.lock
+
+# Local env files
+.env
+.env.local
+config.toml
+
+# Dev databases
+*.db
+*.db-shm
+*.db-wal
