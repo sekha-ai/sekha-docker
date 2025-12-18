@@ -1,46 +1,46 @@
-# ============================================
+# docker/Dockerfile.rust - COMPLETE REPLACEMENT
+# Multi-stage build: ~30MB final size
+
 # Stage 1: Builder
-# ============================================
-FROM rust:1.91-slim AS builder
+FROM rust:1.75-slim AS builder
 
 WORKDIR /app
 
 # Install build dependencies only
 RUN apt-get update && apt-get install -y \
-    libssl-dev \
+    libpq-dev \
     pkg-config \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy manifests first for better caching
+# Copy manifests first for better layer caching
 COPY Cargo.toml Cargo.lock ./
-
-# Copy source code
-COPY src ./src
 COPY migration ./migration
 COPY migrations ./migrations
 
-# Build release binary (strip symbols)
-RUN cargo build --release --bin sekha-controller && \
-    strip target/release/sekha-controller
+# Copy source code
+COPY src ./src
 
-# ============================================
-# Stage 2: Runtime (Distroless)
-# ============================================
+# Build release binary
+RUN cargo build --release --bin sekha-controller
+
+# Stage 2: Runtime - Use distroless for minimal attack surface
 FROM gcr.io/distroless/cc-debian12:nonroot
 
-# Copy binary from builder
-COPY --from=builder /app/target/release/sekha-controller /usr/local/bin/sekha-controller
+# Copy the binary from builder
+COPY --from=builder --chown=nonroot:nonroot /app/target/release/sekha-controller /usr/local/bin/
 
-# Copy default config
-COPY config.example.toml /etc/sekha/config.toml
+# Copy CA certificates for HTTPS calls to Ollama/Chroma
+COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 
-# Use nonroot user (security)
+# Use nonroot user (security best practice)
 USER nonroot:nonroot
 
+# Expose port
 EXPOSE 8080
 
 # Health check
-HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-    CMD ["/usr/local/bin/sekha-controller", "--health-check"]
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
+    CMD ["/usr/local/bin/sekha-controller", "--health-check"] || exit 1
 
+# Run the binary directly (no shell)
 ENTRYPOINT ["/usr/local/bin/sekha-controller"]

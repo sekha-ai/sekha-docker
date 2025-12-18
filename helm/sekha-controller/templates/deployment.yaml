@@ -1,0 +1,60 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "sekha-controller.fullname" . }}
+  labels:
+    {{- include "sekha-controller.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "sekha-controller.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "sekha-controller.selectorLabels" . | nindent 8 }}
+    spec:
+      containers:
+        - name: {{ .Chart.Name }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          env:
+            - name: SEKHA_DATABASE_URL
+              value: "sqlite:///data/sekha.db"
+            - name: SEKHA_CHROMA_URL
+              value: "{{ .Values.chroma.url }}"
+            - name: SEKHA_OLLAMA_URL
+              value: "{{ .Values.ollama.url }}"
+            - name: RUST_LOG
+              value: "info"
+          volumeMounts:
+            - name: config
+              mountPath: /etc/sekha
+              readOnly: true
+            - name: data
+              mountPath: /data
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      volumes:
+        - name: config
+          configMap:
+            name: {{ include "sekha-controller.fullname" . }}
+        - name: data
+          persistentVolumeClaim:
+            claimName: {{ include "sekha-controller.fullname" . }}

@@ -1,57 +1,67 @@
 #!/bin/bash
 set -e
 
-# ============================================
-# Sekha Local Binary Installer (Tier 1)
-# ============================================
+# Sekha Local Installer (Tier 1)
+# One-command local binary installation
 
-INSTALL_DIR="${SEKHA_INSTALL_DIR:-$HOME/.local/bin}"
-CONFIG_DIR="${SEKHA_CONFIG_DIR:-$HOME/.sekha}"
-VERSION="${SEKHA_VERSION:-latest}"
-ARCH="$(uname -m)"
-OS="$(uname -s | tr '[:upper:]' '[:lower:]')"
+INSTALL_DIR="${INSTALL_DIR:-$HOME/.local/bin}"
+CONFIG_DIR="${CONFIG_DIR:-$HOME/.sekha}"
+DATA_DIR="${CONFIG_DIR}/data"
 
-echo "🔧 Installing Sekha Controller locally..."
+echo "🚀 Installing Sekha Controller (Local Binary)..."
 
-# Detect architecture
-case "$ARCH" in
+# Detect OS and architecture
+OS=$(uname -s | tr '[:upper:]' '[:lower:]')
+ARCH=$(uname -m)
+
+case $ARCH in
     x86_64) ARCH="amd64" ;;
-    aarch64|arm64) ARCH="arm64" ;;
+    aarch64) ARCH="arm64" ;;
+    arm64) ARCH="arm64" ;;
     *) echo "❌ Unsupported architecture: $ARCH"; exit 1 ;;
 esac
 
-# Create directories
-mkdir -p "$INSTALL_DIR"
-mkdir -p "$CONFIG_DIR"
-mkdir -p "$CONFIG_DIR/data"
+echo "📋 Detected: $OS-$ARCH"
 
-# Download binary
-BINARY_URL="https://github.com/sekha-ai/sekha-controller/releases/download/${VERSION}/sekha-controller-${OS}-${ARCH}"
-echo "⬇️  Downloading from $BINARY_URL..."
+# Get latest release version
+LATEST_VERSION=$(curl -s https://api.github.com/repos/sekha-ai/sekha-controller/releases/latest | grep '"tag_name":' | cut -d'"' -f4)
 
-if command -v curl >/dev/null 2>&1; then
-    curl -sSL "$BINARY_URL" -o "$INSTALL_DIR/sekha-controller"
-elif command -v wget >/dev/null 2>&1; then
-    wget -q "$BINARY_URL" -O "$INSTALL_DIR/sekha-controller"
-else
-    echo "❌ curl or wget required"
+if [ -z "$LATEST_VERSION" ]; then
+    echo "❌ Failed to fetch latest version"
     exit 1
 fi
 
-# Make executable
-chmod +x "$INSTALL_DIR/sekha-controller"
+echo "📦 Latest version: $LATEST_VERSION"
 
-# Create config if not exists
-CONFIG_FILE="$CONFIG_DIR/config.toml"
-if [ ! -f "$CONFIG_FILE" ]; then
-    echo "📄 Creating config at $CONFIG_FILE..."
-    cat > "$CONFIG_FILE" << EOF
+# Download URL
+DOWNLOAD_URL="https://github.com/sekha-ai/sekha-controller/releases/download/${LATEST_VERSION}/sekha-controller-${OS}-${ARCH}"
+
+# Download binary
+echo "⬇️  Downloading..."
+curl -L --progress-bar -o /tmp/sekha-controller "$DOWNLOAD_URL"
+chmod +x /tmp/sekha-controller
+
+# Create install directory
+mkdir -p "$INSTALL_DIR"
+
+# Move binary
+mv /tmp/sekha-controller "$INSTALL_DIR/"
+echo "✅ Binary installed to $INSTALL_DIR/sekha-controller"
+
+# Create directories
+mkdir -p "$CONFIG_DIR" "$DATA_DIR"
+echo "✅ Created directories: $CONFIG_DIR, $DATA_DIR"
+
+# Create default config if it doesn't exist
+if [ ! -f "$CONFIG_DIR/config.toml" ]; then
+    echo "📝 Creating default configuration..."
+    cat > "$CONFIG_DIR/config.toml" << 'EOF'
 [server]
 host = "127.0.0.1"
 port = 8080
 
 [database]
-url = "sqlite:///$CONFIG_DIR/data/sekha.db"
+url = "sqlite:///.sekha/data/sekha.db"
 
 [chroma]
 url = "http://localhost:8000"
@@ -59,53 +69,28 @@ url = "http://localhost:8000"
 [ollama]
 url = "http://localhost:11434"
 embedding_model = "nomic-embed-text"
-
-[redis]
-url = "redis://localhost:6379/0"
 EOF
+    echo "✅ Default config created: $CONFIG_DIR/config.toml"
+else
+    echo "⚠️  Config already exists: $CONFIG_DIR/config.toml"
 fi
 
-# Create systemd service (optional)
-if command -v systemctl >/dev/null 2>&1; then
-    echo ""
-    read -p "🚀 Create systemd service for auto-start? (y/N) " -n 1 -r
-    echo ""
-    if [[ $REPLY =~ ^[Yy]$ ]]; then
-        sudo tee /etc/systemd/system/sekha.service > /dev/null << EOF
-[Unit]
-Description=Sekha Memory Controller
-After=network.target
-
-[Service]
-Type=simple
-User=$USER
-ExecStart=$INSTALL_DIR/sekha-controller
-Restart=always
-RestartSec=10
-
-[Install]
-WantedBy=multi-user.target
-EOF
-        sudo systemctl daemon-reload
-        echo "✅ Systemd service created: sudo systemctl enable --now sekha"
-    fi
-fi
-
-# Add to PATH if not already
+# Add to PATH if needed
 if [[ ":$PATH:" != *":$INSTALL_DIR:"* ]]; then
     echo ""
-    echo "⚠️  Add this to your shell profile (.bashrc, .zshrc, etc.):"
-    echo "export PATH=\"$INSTALL_DIR:\\$PATH\""
+    echo "📌 Add to PATH:"
+    echo "export PATH=\"$INSTALL_DIR:\$PATH\""
+    echo ""
+    echo "💡 Add this line to your ~/.bashrc or ~/.zshrc"
 fi
 
 echo ""
-echo "✅ Sekha Controller installed successfully!"
-echo "📍 Binary location: $INSTALL_DIR/sekha-controller"
-echo "⚙️  Config location: $CONFIG_FILE"
+echo "🎉 Installation complete!"
 echo ""
-echo "🚀 Quick start:"
-echo "   1. Start Ollama: ollama serve"
-echo "   2. Pull models: ollama pull nomic-embed-text llama3.1:8b"
-echo "   3. Start Sekha: $INSTALL_DIR/sekha-controller"
-echo "   4. Test: curl http://localhost:8080/health"
+echo "🔧 Configure Ollama and Chroma, then run:"
+echo "   sekha-controller"
 echo ""
+echo "📖 View logs:"
+echo "   tail -f ~/.sekha/logs/sekha-controller.log"
+echo ""
+echo "🌐 Access at: http://localhost:8080"

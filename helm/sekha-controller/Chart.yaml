@@ -1,0 +1,26 @@
+apiVersion: v2
+name: sekha-controller
+description: Sekha AI Memory Controller - Universal AI Memory System
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
+keywords:
+  - ai
+  - memory
+  - mcp
+  - vector-database
+home: https://sekha-ai.dev
+sources:
+  - https://github.com/sekha-ai/sekha-controller
+maintainers:
+  - name: Sekha AI Team
+    email: team@sekha-ai.dev
+dependencies:
+  - name: redis
+    version: 18.0.0
+    repository: https://charts.bitnami.com/bitnami
+    condition: redis.enabled
+  - name: chroma
+    version: 0.1.0
+    repository: https://sekha-ai.github.io/helm-charts
+    condition: chroma.enabled

@@ -1,0 +1,96 @@
+# docker/docker-compose.prod.yml - NEW FILE
+# Production-ready with resource limits and restart policies
+
+services:
+  sekha-core:
+    image: ghcr.io/sekha-ai/controller:latest
+    ports:
+      - "${SEKHA_PORT:-8080}:8080"
+    volumes:
+      - sekha-data:/data
+      - ./config.prod.toml:/etc/sekha/config.toml:ro
+    environment:
+      - SEKHA_DATABASE_URL=sqlite:///data/sekha.db
+      - SEKHA_CHROMA_URL=http://chroma:8000
+      - SEKHA_OLLAMA_URL=${OLLAMA_HOST:-http://ollama:11434}
+      - RUST_LOG=info
+    depends_on:
+      chroma:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '1.0'
+        reservations:
+          memory: 256M
+          cpus: '0.25'
+
+  sekha-bridge:
+    image: ghcr.io/sekha-ai/llm-bridge:latest
+    expose:
+      - "5001"
+    environment:
+      - OLLAMA_HOST=${OLLAMA_HOST:-http://ollama:11434}
+      - REDIS_URL=${REDIS_HOST:-redis://redis:6379/0}
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5001/health"]
+      interval: 30s
+      timeout: 5s
+      start_period: 20s
+      retries: 3
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '2.0'
+        reservations:
+          memory: 512M
+          cpus: '0.5'
+
+  chroma:
+    image: chromadb/chroma:latest
+    expose:
+      - "8000"
+    volumes:
+      - chroma-data:/chroma/chroma
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/heartbeat"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    expose:
+      - "6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+
+volumes:
+  sekha-data:
+    driver: local
+  chroma-data:
+    driver: local
+  redis-data:
+    driver: local

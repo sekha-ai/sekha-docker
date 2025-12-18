@@ -1,0 +1,88 @@
+{
+  "family": "sekha-controller",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "1024",
+  "memory": "2048",
+  "containerDefinitions": [
+    {
+      "name": "sekha-core",
+      "image": "ghcr.io/sekha-ai/controller:latest",
+      "portMappings": [
+        {
+          "containerPort": 8080,
+          "protocol": "tcp"
+        }
+      ],
+      "environment": [
+        {
+          "name": "SEKHA_DATABASE_URL",
+          "value": "sqlite:///data/sekha.db"
+        },
+        {
+          "name": "SEKHA_CHROMA_URL",
+          "value": "http://chroma:8000"
+        },
+        {
+          "name": "SEKHA_OLLAMA_URL",
+          "value": "http://ollama:11434"
+        }
+      ],
+      "mountPoints": [
+        {
+          "sourceVolume": "sekha-data",
+          "containerPath": "/data"
+        }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/sekha/controller",
+          "awslogs-region": "us-east-1",
+          "awslogs-stream-prefix": "ecs"
+        }
+      },
+      "healthCheck": {
+        "command": ["CMD-SHELL", "curl -f http://localhost:8080/health || exit 1"],
+        "interval": 30,
+        "timeout": 5,
+        "retries": 3,
+        "startPeriod": 30
+      }
+    },
+    {
+      "name": "sekha-bridge",
+      "image": "ghcr.io/sekha-ai/llm-bridge:latest",
+      "portMappings": [
+        {
+          "containerPort": 5001,
+          "protocol": "tcp"
+        }
+      ],
+      "environment": [
+        {
+          "name": "OLLAMA_HOST",
+          "value": "http://ollama:11434"
+        },
+        {
+          "name": "REDIS_URL",
+          "value": "redis://redis:6379/0"
+        }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/sekha/bridge",
+          "awslogs-region": "us-east-1",
+          "awslogs-stream-prefix": "ecs"
+        }
+      }
+    }
+  ],
+  "volumes": [
+    {
+      "name": "sekha-data",
+      "host": {}
+    }
+  ]
+}
