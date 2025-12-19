@@ -1,64 +1,158 @@
 # Default values for sekha-controller
-replicaCount: 1
 
-image:
-  repository: ghcr.io/sekha-ai/controller
-  pullPolicy: IfNotPresent
-  tag: "latest"
+# Global settings
+global:
+  imageRegistry: ghcr.io
+  imagePullSecrets: []
+  storageClass: ""
 
-llmBridge:
+# Sekha Controller configuration
+controller:
+  enabled: true
+  replicaCount: 1
+  
   image:
-    repository: ghcr.io/sekha-ai/llm-bridge
+    repository: sekha-ai/sekha-controller
     pullPolicy: IfNotPresent
     tag: "latest"
+  
+  imagePullSecrets: []
+  nameOverride: ""
+  fullnameOverride: ""
+  
+  serviceAccount:
+    create: true
+    annotations: {}
+    name: ""
+  
+  podAnnotations: {}
+  
+  podSecurityContext:
+    fsGroup: 1000
+  
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 1000
+  
+  service:
+    type: ClusterIP
+    port: 80
+    targetPort: 8080
+  
+  ingress:
+    enabled: false
+    className: ""
+    annotations: {}
+    hosts:
+      - host: sekha.local
+        paths:
+          - path: /
+            pathType: Prefix
+    tls: []
+  
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+  
+  autoscaling:
+    enabled: false
+    minReplicas: 1
+    maxReplicas: 5
+    targetCPUUtilizationPercentage: 80
+    targetMemoryUtilizationPercentage: 80
+  
+  nodeSelector: {}
+  
+  tolerations: []
+  
+  affinity: {}
+  
+  config:
+    databaseUrl: "sqlite:///data/sekha.db"
+    chromaUrl: "http://chroma:8000"
+    ollamaUrl: "http://ollama:11434"
+    logLevel: "info"
+  
+  persistence:
+    enabled: true
+    storageClass: ""
+    accessMode: ReadWriteOnce
+    size: 10Gi
 
-service:
-  type: LoadBalancer
-  port: 80
-  targetPort: 8080
-
-ingress:
-  enabled: false
-  className: ""
-  annotations: {}
-  hosts:
-    - host: sekha.local
-      paths:
-        - path: /
-          pathType: Prefix
-  tls: []
-
-resources:
-  limits:
-    cpu: 1000m
-    memory: 1Gi
-  requests:
-    cpu: 250m
-    memory: 256Mi
-
-autoscaling:
-  enabled: false
-  minReplicas: 1
-  maxReplicas: 5
-  targetCPUUtilizationPercentage: 80
-
-persistence:
+# LLM Bridge configuration
+bridge:
   enabled: true
-  size: 10Gi
-  storageClass: standard
+  replicaCount: 1
+  
+  image:
+    repository: sekha-ai/sekha-mcp
+    pullPolicy: IfNotPresent
+    tag: "latest"
+  
+  service:
+    type: ClusterIP
+    port: 80
+    targetPort: 5001
+  
+  resources:
+    limits:
+      cpu: 200m
+      memory: 256Mi
+    requests:
+      cpu: 50m
+      memory: 64Mi
+  
+  config:
+    redisUrl: "redis://redis:6379/0"
+    ollamaHost: "http://ollama:11434"
+    workers: 4
 
-ollama:
-  enabled: true
-  url: "http://ollama:11434"
-
+# Redis configuration
 redis:
   enabled: true
   architecture: standalone
+  
   auth:
     enabled: false
+  
+  master:
+    persistence:
+      enabled: true
+      storageClass: ""
+      accessMode: ReadWriteOnce
+      size: 1Gi
+  
+  resources:
+    limits:
+      cpu: 200m
+      memory: 128Mi
+    requests:
+      cpu: 50m
+      memory: 32Mi
 
+# Chroma configuration
 chroma:
   enabled: true
+  
+  image:
+    repository: chromadb/chroma
+    tag: latest
+    pullPolicy: IfNotPresent
+  
   persistence:
     enabled: true
-    size: 20Gi
+    storageClass: ""
+    accessMode: ReadWriteOnce
+    size: 5Gi
+  
+  resources:
+    limits:
+      cpu: 500m
+      memory: 1Gi
+    requests:
+      cpu: 100m
+      memory: 256Mi

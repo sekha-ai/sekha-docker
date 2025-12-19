@@ -6,8 +6,8 @@ metadata:
 data:
   config.toml: |
     [server]
-    host = "0.0.0.0"
     port = 8080
+    host = "0.0.0.0"
     
     [database]
     url = "sqlite:///data/sekha.db"
@@ -15,9 +15,11 @@ data:
     [chroma]
     url = "http://chroma:8000"
     
+    [redis]
+    url = "redis://redis:6379"
+    
     [ollama]
     url = "http://ollama:11434"
-    embedding_model = "nomic-embed-text"
     
-    [redis]
-    url = "redis://redis:6379/0"
+    [logging]
+    level = "info"

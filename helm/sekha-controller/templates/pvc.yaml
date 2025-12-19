@@ -1,0 +1,17 @@
+{{- if .Values.controller.persistence.enabled }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "sekha.fullname" . }}-data
+  labels:
+    {{- include "sekha.labels" . | nindent 4 }}
+spec:
+  accessModes:
+    - {{ .Values.controller.persistence.accessMode }}
+  resources:
+    requests:
+      storage: {{ .Values.controller.persistence.size }}
+  {{- if .Values.controller.persistence.storageClass }}
+  storageClassName: {{ .Values.controller.persistence.storageClass }}
+  {{- end }}
+{{- end }}

@@ -1,0 +1,64 @@
+# Sekha Controller - Full Stack Deployment
+version: '3.8'
+
+services:
+  sekha-core:
+    image: ghcr.io/sekha-ai/sekha-controller:${SEKHA_VERSION:-latest}
+    ports:
+      - "${SEKHA_PORT:-8080}:8080"
+    volumes:
+      - sekha-data:/data
+      - ${CONFIG_PATH:-./config.toml}:/config.toml:ro
+    environment:
+      - SEKHA_DATABASE_URL=${SEKHA_DATABASE_URL:-sqlite:///data/sekha.db}
+      - SEKHA_CHROMA_URL=${CHROMA_HOST:-http://chroma:8000}
+      - SEKHA_OLLAMA_URL=${OLLAMA_HOST:-http://ollama:11434}
+      - SEKHA_REDIS_URL=${REDIS_HOST:-redis://redis:6379}
+      - RUST_LOG=${RUST_LOG:-info}
+      - SEKHA_LOG_LEVEL=${SEKHA_LOG_LEVEL:-info}
+    depends_on:
+      chroma:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+
+  sekha-bridge:
+    image: ghcr.io/sekha-ai/sekha-mcp:${BRIDGE_VERSION:-latest}
+    ports:
+      - "${BRIDGE_PORT:-5001}:5001"
+    environment:
+      - OLLAMA_HOST=${OLLAMA_HOST:-http://ollama:11434}
+      - REDIS_URL=${REDIS_HOST:-redis://redis:6379/0}
+      - BRIDGE_LOG_LEVEL=${BRIDGE_LOG_LEVEL:-info}
+      - BRIDGE_WORKERS=${BRIDGE_WORKERS:-4}
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5001/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+
+  # Include base services
+  chroma:
+    extends:
+      file: docker-compose.yml
+      service: chroma
+
+  redis:
+    extends:
+      file: docker-compose.yml
+      service: redis
+
+volumes:
+  sekha-data:

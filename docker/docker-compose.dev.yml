@@ -1,0 +1,63 @@
+# Sekha Controller - Development Environment with Hot Reload
+version: '3.8'
+
+services:
+  sekha-core-dev:
+    build:
+      context: ../sekha-controller
+      dockerfile: ../sekha-docker/docker/Dockerfile.rust.dev
+    ports:
+      - "${SEKHA_PORT:-8080}:8080"
+    volumes:
+      - ../sekha-controller:/app:ro
+      - sekha-target:/app/target
+      - sekha-data:/data
+      - ${CONFIG_PATH:-../sekha-controller/config.toml}:/config.toml:ro
+    environment:
+      - SEKHA_DATABASE_URL=sqlite:///data/sekha.db
+      - SEKHA_CHROMA_URL=http://chroma:8000
+      - SEKHA_OLLAMA_URL=${OLLAMA_HOST:-http://host.docker.internal:11434}
+      - SEKHA_REDIS_URL=redis://redis:6379
+      - RUST_LOG=debug
+      - RUST_BACKTRACE=1
+      - CARGO_WATCH=true
+    depends_on:
+      - chroma
+      - redis
+    command: cargo watch -x run
+    profiles:
+      - dev
+
+  sekha-bridge-dev:
+    build:
+      context: ../sekha-mcp
+      dockerfile: ../sekha-docker/docker/Dockerfile.python.dev
+    ports:
+      - "${BRIDGE_PORT:-5001}:5001"
+    volumes:
+      - ../sekha-mcp:/app
+    environment:
+      - OLLAMA_HOST=${OLLAMA_HOST:-http://host.docker.internal:11434}
+      - REDIS_URL=redis://redis:6379/0
+      - PYTHONUNBUFFERED=1
+      - DEBUG=1
+    depends_on:
+      - redis
+    command: uvicorn main:app --host 0.0.0.0 --port 5001 --reload
+    profiles:
+      - dev
+
+  # Base services from docker-compose.yml
+  chroma:
+    extends:
+      file: docker-compose.yml
+      service: chroma
+
+  redis:
+    extends:
+      file: docker-compose.yml
+      service: redis
+
+volumes:
+  sekha-data:
+  sekha-target:

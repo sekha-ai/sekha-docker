@@ -5,54 +5,59 @@ metadata:
   namespace: sekha
   labels:
     app.kubernetes.io/name: sekha-core
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/component: controller
+    app.kubernetes.io/part-of: sekha-memory-system
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app.kubernetes.io/name: sekha-core
+      app: sekha-core
   template:
     metadata:
       labels:
+        app: sekha-core
         app.kubernetes.io/name: sekha-core
     spec:
       containers:
       - name: sekha-core
-        image: ghcr.io/sekha-ai/controller:latest
+        image: ghcr.io/sekha-ai/sekha-controller:latest
         ports:
         - containerPort: 8080
+          name: http
+        volumeMounts:
+        - name: config
+          mountPath: /config.toml
+          subPath: config.toml
+        - name: data
+          mountPath: /data
         env:
         - name: SEKHA_DATABASE_URL
           value: "sqlite:///data/sekha.db"
         - name: SEKHA_CHROMA_URL
           value: "http://chroma:8000"
-        - name: SEKHA_OLLAMA_URL
-          value: "http://ollama:11434"
+        - name: SEKHA_REDIS_URL
+          value: "redis://redis:6379"
         - name: RUST_LOG
           value: "info"
-        volumeMounts:
-        - name: config
-          mountPath: /etc/sekha
-          readOnly: true
-        - name: data
-          mountPath: /data
         resources:
           requests:
-            memory: "256Mi"
-            cpu: "250m"
+            memory: "128Mi"
+            cpu: "100m"
           limits:
-            memory: "1Gi"
-            cpu: "1000m"
+            memory: "512Mi"
+            cpu: "500m"
         livenessProbe:
           httpGet:
             path: /health
             port: 8080
-          initialDelaySeconds: 30
+          initialDelaySeconds: 10
           periodSeconds: 30
         readinessProbe:
           httpGet:
             path: /health
             port: 8080
-          initialDelaySeconds: 10
+          initialDelaySeconds: 5
           periodSeconds: 10
       volumes:
       - name: config
@@ -61,7 +66,9 @@ spec:
       - name: data
         persistentVolumeClaim:
           claimName: sekha-data
+
 ---
+
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -69,42 +76,147 @@ metadata:
   namespace: sekha
   labels:
     app.kubernetes.io/name: sekha-bridge
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/component: llm-bridge
+    app.kubernetes.io/part-of: sekha-memory-system
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app.kubernetes.io/name: sekha-bridge
+      app: sekha-bridge
   template:
     metadata:
       labels:
+        app: sekha-bridge
         app.kubernetes.io/name: sekha-bridge
     spec:
       containers:
       - name: sekha-bridge
-        image: ghcr.io/sekha-ai/llm-bridge:latest
+        image: ghcr.io/sekha-ai/sekha-mcp:latest
         ports:
         - containerPort: 5001
+          name: http
         env:
-        - name: OLLAMA_HOST
-          value: "http://ollama:11434"
         - name: REDIS_URL
           value: "redis://redis:6379/0"
+        - name: OLLAMA_HOST
+          value: "http://ollama:11434"
         resources:
           requests:
-            memory: "512Mi"
-            cpu: "500m"
+            memory: "64Mi"
+            cpu: "50m"
           limits:
-            memory: "2Gi"
-            cpu: "2000m"
+            memory: "256Mi"
+            cpu: "200m"
         livenessProbe:
           httpGet:
             path: /health
             port: 5001
-          initialDelaySeconds: 30
+          initialDelaySeconds: 10
           periodSeconds: 30
         readinessProbe:
           httpGet:
             path: /health
             port: 5001
+          initialDelaySeconds: 5
+          periodSeconds: 10
+
+---
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: chroma
+  namespace: sekha
+  labels:
+    app.kubernetes.io/name: chroma
+    app.kubernetes.io/version: "stable"
+    app.kubernetes.io/component: vector-database
+    app.kubernetes.io/part-of: sekha-memory-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: chroma
+  template:
+    metadata:
+      labels:
+        app: chroma
+        app.kubernetes.io/name: chroma
+    spec:
+      containers:
+      - name: chroma
+        image: chromadb/chroma:latest
+        ports:
+        - containerPort: 8000
+          name: http
+        volumeMounts:
+        - name: data
+          mountPath: /chroma/chroma
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /api/v1/heartbeat
+            port: 8000
           initialDelaySeconds: 10
           periodSeconds: 10
+      volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: chroma-data
+
+---
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis
+  namespace: sekha
+  labels:
+    app.kubernetes.io/name: redis
+    app.kubernetes.io/version: "7-alpine"
+    app.kubernetes.io/component: cache
+    app.kubernetes.io/part-of: sekha-memory-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis
+  template:
+      labels:
+        app: redis
+        app.kubernetes.io/name: redis
+    spec:
+      containers:
+      - name: redis
+        image: redis:7-alpine
+        ports:
+        - containerPort: 6379
+          name: redis
+        volumeMounts:
+        - name: data
+          mountPath: /data
+        resources:
+          requests:
+            memory: "32Mi"
+            cpu: "50m"
+          limits:
+            memory: "128Mi"
+            cpu: "200m"
+        livenessProbe:
+          exec:
+            command:
+            - redis-cli
+            - ping
+          initialDelaySeconds: 10
+          periodSeconds: 10
+      volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: redis-data

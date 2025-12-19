@@ -1,0 +1,19 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    curl \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install uvicorn with reload support
+RUN pip install uvicorn[standard]
+
+# Create non-root user
+RUN useradd -m -u 1000 sekha
+USER sekha
+
+# Default command (will be overridden by docker-compose)
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "5001", "--reload"]

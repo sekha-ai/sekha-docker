@@ -3,5 +3,8 @@ kind: Namespace
 metadata:
   name: sekha
   labels:
-    app.kubernetes.io/name: sekha
-    app.kubernetes.io/version: "1.0.0"
+    name: sekha
+    app.kubernetes.io/name: sekha-controller
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/component: infrastructure
+    app.kubernetes.io/part-of: sekha-memory-system

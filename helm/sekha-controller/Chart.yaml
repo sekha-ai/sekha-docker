@@ -1,9 +1,9 @@
 apiVersion: v2
 name: sekha-controller
-description: Sekha AI Memory Controller - Universal AI Memory System
+description: A Helm chart for Sekha Controller - Universal AI Memory System
 type: application
 version: 0.1.0
-appVersion: "1.0.0"
+appVersion: "0.1.0"
 keywords:
   - ai
   - memory
@@ -12,15 +12,16 @@ keywords:
 home: https://sekha-ai.dev
 sources:
   - https://github.com/sekha-ai/sekha-controller
+  - https://github.com/sekha-ai/sekha-docker
 maintainers:
   - name: Sekha AI Team
     email: team@sekha-ai.dev
 dependencies:
   - name: redis
-    version: 18.0.0
+    version: 17.x.x
     repository: https://charts.bitnami.com/bitnami
     condition: redis.enabled
   - name: chroma
-    version: 0.1.0
+    version: 0.1.x
     repository: https://sekha-ai.github.io/helm-charts
     condition: chroma.enabled
