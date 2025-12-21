@@ -1,0 +1,45 @@
+name: Deployment Tests
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  docker-compose-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run Docker Compose tests
+        run: |
+          cd tests
+          cargo test --test test_docker_compose
+
+  helm-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install tools
+        run: |
+          curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+          go install github.com/yannh/kubeconform/cmd/kubeconform@latest
+      - name: Run Helm tests
+        run: ./helm/tests/test_helm.sh
+
+  terraform-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+      - name: Run Terraform validation
+        run: ./cloud/tests/test_terraform.sh
+
+  installation-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test installation script
+        run: |
+          cd ../sekha-controller
+          ./tests/test_install.sh
