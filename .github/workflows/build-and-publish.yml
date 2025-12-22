@@ -1,0 +1,199 @@
+name: Build and Publish
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME_CONTROLLER: ${{ github.repository_owner }}/sekha-controller
+  IMAGE_NAME_BRIDGE: ${{ github.repository_owner }}/sekha-bridge
+
+jobs:
+  build-rust-binary:
+    name: Build Rust Binary
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            artifact: sekha-controller-linux-x86_64
+          - os: ubuntu-latest
+            target: aarch64-unknown-linux-gnu
+            artifact: sekha-controller-linux-aarch64
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            artifact: sekha-controller-macos-x86_64
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            artifact: sekha-controller-macos-aarch64
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            artifact: sekha-controller-windows-x86_64.exe
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      
+      - name: Install cross-compilation tools
+        if: matrix.os == 'ubuntu-latest' && matrix.target == 'aarch64-unknown-linux-gnu'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-aarch64-linux-gnu
+      
+      - name: Build
+        run: cargo build --release --target ${{ matrix.target }}
+        working-directory: ./sekha-controller
+      
+      - name: Rename binary
+        run: |
+          cp target/${{ matrix.target }}/release/sekha-controller* ${{ matrix.artifact }}
+        working-directory: ./sekha-controller
+      
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: ./sekha-controller/${{ matrix.artifact }}
+
+  build-docker-images:
+    name: Build and Push Docker Images
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        component: [controller, bridge]
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ matrix.component == 'controller' && env.IMAGE_NAME_CONTROLLER || env.IMAGE_NAME_BRIDGE }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+            type=raw,value=latest,enable={{is_default_branch}}
+      
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: ${{ matrix.component == 'controller' && './sekha-controller' || './sekha-bridge' }}
+          file: ${{ matrix.component == 'controller' && './sekha-docker/docker/Dockerfile.rust.prod' || './sekha-docker/docker/Dockerfile.python.prod' }}
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  generate-sbom:
+    name: Generate SBOM
+    runs-on: ubuntu-latest
+    needs: [build-rust-binary, build-docker-images]
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Syft
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin
+      
+      - name: Generate SBOM for Rust
+        run: |
+          syft packages dir:./sekha-controller -o spdx-json > sekha-controller-sbom.json
+      
+      - name: Generate SBOM for Python
+        run: |
+          syft packages dir:./sekha-bridge -o spdx-json > sekha-bridge-sbom.json
+      
+      - name: Upload SBOM artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom-files
+          path: |
+            sekha-controller-sbom.json
+            sekha-bridge-sbom.json
+
+  integration-tests:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    needs: build-docker-images
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Pull images
+        run: |
+          docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_CONTROLLER }}:latest
+          docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_BRIDGE }}:latest
+      
+      - name: Run integration tests
+        run: |
+          cd sekha-docker
+          docker-compose -f docker-compose.test.yml up --abort-on-container-exit
+      
+      - name: Check health endpoints
+        run: |
+          docker-compose -f sekha-docker/docker-compose.yml up -d
+          sleep 10
+          curl -f http://localhost:8080/health || exit 1
+          curl -f http://localhost:5001/health || exit 1
+
+  create-release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    needs: [build-rust-binary, build-docker-images, generate-sbom, integration-tests]
+    permissions:
+      contents: write
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: ./artifacts
+      
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            ./artifacts/**/*
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

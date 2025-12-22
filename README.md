@@ -1,3 +1,5 @@
+[![Build and Publish](https://github.com/sekha-ai/sekha-docker/actions/workflows/build-and-publish.yml/badge.svg)](https://github.com/sekha-ai/sekha-docker/actions/workflows/build-and-publish.yml)
+
 # Sekha Docker & Deployment
 
 Production-ready Docker images, Kubernetes manifests, and cloud deployment templates for Sekha Controller.
@@ -511,3 +513,34 @@ AGPL v3 - See LICENSE
 📖 Documentation: https://sekha-ai.dev/docs
 💬 Discussions: https://github.com/sekha-ai/sekha-controller/discussions
 🐛 Issues: https://github.com/sekha-ai/sekha-controller/issues
+
+
+because claude sucks at formatting/documentation (must fix):
+
+text
+## Docker Images
+
+Pre-built images available on GitHub Container Registry:
+
+### Pull Images
+
+Controller (Rust)
+docker pull ghcr.io/sekha-ai/sekha-controller:latest
+docker pull ghcr.io/sekha-ai/sekha-controller:v1.0.0
+
+Bridge (Python)
+docker pull ghcr.io/sekha-ai/sekha-bridge:latest
+docker pull ghcr.io/sekha-ai/sekha-bridge:v1.0.0
+
+text
+
+### Multi-Architecture Support
+
+All images support:
+- linux/amd64 (x86_64)
+- linux/arm64 (aarch64)
+
+### Image Sizes
+
+- sekha-controller: ~25-30MB (distroless)
+- sekha-bridge: ~150MB (Python slim)
