@@ -10,6 +10,12 @@ DB_PASSWORD="${SEKHA_DB_PASSWORD:-$(openssl rand -base64 32)}"
 echo "🚀 Deploying Sekha to Azure..."
 echo "Resource Group: $RESOURCE_GROUP"
 echo "Location: $LOCATION"
+echo ""
+echo "⚠️  SAVE YOUR DATABASE PASSWORD:"
+echo "    $DB_PASSWORD"
+echo ""
+echo "Press Enter to continue or Ctrl+C to cancel..."
+read
 
 # Create resource group
 az group create \
