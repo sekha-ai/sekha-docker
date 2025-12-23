@@ -35,10 +35,14 @@ jobs:
             asset_name: sekha-controller-windows-x86_64.exe
 
     steps:
-      - name: Checkout code
+      - name: Checkout sekha-controller
         uses: actions/checkout@v4
+        with:
+          repository: sekha-ai/sekha-controller
+          path: sekha-controller
 
       - name: Setup Rust
+
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
@@ -50,17 +54,19 @@ jobs:
           sudo apt-get install -y gcc-aarch64-linux-gnu
 
       - name: Build binary
+        working-directory: sekha-controller
         run: cargo build --release --target ${{ matrix.target }}
 
       - name: Strip binary (Linux/macOS)
         if: matrix.os != 'windows-latest'
+        working-directory: sekha-controller
         run: strip target/${{ matrix.target }}/release/${{ matrix.artifact_name }}
 
       - name: Upload binary
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.asset_name }}
-          path: target/${{ matrix.target }}/release/${{ matrix.artifact_name }}
+          path: sekha-controller/target/${{ matrix.target }}/release/${{ matrix.artifact_name }}
 
       - name: Upload to release
         if: github.event_name == 'release'
@@ -69,6 +75,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ github.event.release.upload_url }}
-          asset_path: target/${{ matrix.target }}/release/${{ matrix.artifact_name }}
+          asset_path: sekha-controller/target/${{ matrix.target }}/release/${{ matrix.artifact_name }}
+
           asset_name: ${{ matrix.asset_name }}
           asset_content_type: application/octet-stream

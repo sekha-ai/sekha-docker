@@ -19,8 +19,23 @@ jobs:
       packages: write
 
     steps:
-      - name: Checkout repository
+      - name: Checkout sekha-docker
         uses: actions/checkout@v4
+        with:
+          repository: sekha-ai/sekha-docker
+          path: sekha-docker
+
+      - name: Checkout sekha-controller
+        uses: actions/checkout@v4
+        with:
+          repository: sekha-ai/sekha-controller
+          path: sekha-controller
+
+      - name: Checkout sekha-mcp
+        uses: actions/checkout@v4
+        with:
+          repository: sekha-ai/sekha-mcp
+          path: sekha-mcp
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -47,8 +62,8 @@ jobs:
       - name: Build and push Rust controller
         uses: docker/build-push-action@v5
         with:
-          context: ../sekha-controller
-          file: docker/Dockerfile.rust
+          context: ./sekha-controller
+          file: ./sekha-docker/docker/Dockerfile.rust
           push: true
           tags: ${{ steps.meta-controller.outputs.tags }}
           labels: ${{ steps.meta-controller.outputs.labels }}
@@ -58,8 +73,8 @@ jobs:
       - name: Build and push Python bridge
         uses: docker/build-push-action@v5
         with:
-          context: ../sekha-mcp
-          file: docker/Dockerfile.python
+          context: ./sekha-mcp
+          file: ./sekha-docker/docker/Dockerfile.python
           push: true
           tags: ${{ steps.meta-bridge.outputs.tags }}
           labels: ${{ steps.meta-bridge.outputs.labels }}

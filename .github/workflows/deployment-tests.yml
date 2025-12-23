@@ -38,8 +38,19 @@ jobs:
   installation-tests:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout sekha-docker
+        uses: actions/checkout@v4
+        with:
+          repository: sekha-ai/sekha-docker
+          path: sekha-docker
+      
+      - name: Checkout sekha-controller
+        uses: actions/checkout@v4
+        with:
+          repository: sekha-ai/sekha-controller
+          path: sekha-controller
+      
       - name: Test installation script
-        run: |
-          cd ../sekha-controller
-          ./tests/test_install.sh
+        working-directory: sekha-controller
+        run: ./tests/test_install.sh
+
