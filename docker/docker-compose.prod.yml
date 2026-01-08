@@ -1,8 +1,7 @@
-# docker/docker-compose.prod.yml - NEW FILE
-# Production-ready with resource limits and restart policies
-
 services:
   sekha-core:
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     image: ghcr.io/sekha-ai/controller:latest
     ports:
       - "${SEKHA_PORT:-8080}:8080"
@@ -10,13 +9,10 @@ services:
       - sekha-data:/data
       - ./config.prod.toml:/etc/sekha/config.toml:ro
     environment:
-      - SEKHA_DATABASE_URL=sqlite:///data/sekha.db
-      - SEKHA_CHROMA_URL=http://chroma:8000
-      - SEKHA_OLLAMA_URL=${OLLAMA_HOST:-http://ollama:11434}
       - RUST_LOG=info
     depends_on:
       chroma:
-        condition: service_healthy
+        condition: service_started
       redis:
         condition: service_healthy
     healthcheck:
@@ -36,17 +32,19 @@ services:
           cpus: '0.25'
 
   sekha-bridge:
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     image: ghcr.io/sekha-ai/llm-bridge:latest
     expose:
       - "5001"
     environment:
-      - OLLAMA_HOST=${OLLAMA_HOST:-http://ollama:11434}
-      - REDIS_URL=${REDIS_HOST:-redis://redis:6379/0}
+      - OLLAMA_BASE_URL=http://host.docker.internal:11434
+      - REDIS_URL=redis://redis:6379/0
     depends_on:
       redis:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5001/health"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5001/health')"]
       interval: 30s
       timeout: 5s
       start_period: 20s
@@ -67,11 +65,6 @@ services:
       - "8000"
     volumes:
       - chroma-data:/chroma/chroma
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/heartbeat"]
-      interval: 10s
-      timeout: 5s
-      retries: 3
     restart: unless-stopped
 
   redis:
