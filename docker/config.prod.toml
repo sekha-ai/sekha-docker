@@ -1,0 +1,39 @@
+# Sekha Production Configuration
+
+# LLM Configuration
+ollama_url = "http://host.docker.internal:11434"
+embedding_model = "nomic-embed-text:latest"
+summarization_model = "llama3.1:8b"
+
+[server]
+host = "0.0.0.0"
+port = 8080
+cors_origins = ["*"]
+
+[database]
+url = "sqlite:///data/sekha.db?mode=rwc"
+max_connections = 10
+
+[chroma]
+url = "http://chroma:8000"
+collection_name = "sekha_conversations"
+
+[llm_bridge]
+url = "http://sekha-bridge:5001"
+timeout_secs = 30
+
+# API Configuration
+mcp_api_key = "test_key_12345678901234567890123456789012"
+rest_api_key = "test_key_12345678901234567890123456789012"
+additional_api_keys = []
+rate_limit_per_minute = 1000
+cors_enabled = true
+
+[api]
+api_keys = [
+    "test_key_12345678901234567890123456789012",
+]
+rate_limit_per_minute = 1000
+cors_enabled = true
+summarization_enabled = true
+pruning_enabled = true
