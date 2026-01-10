@@ -1,0 +1,30 @@
+# .github/workflows/ci.yml
+name: CI
+
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Validate docker-compose
+        run: docker-compose -f docker/docker-compose.prod.yml config
+      
+      - name: Build images
+        run: docker-compose -f docker/docker-compose.prod.yml build
+      
+      - name: Start services
+        run: docker-compose -f docker/docker-compose.prod.yml up -d
+      
+      - name: Wait for health
+        run: |
+          for i in {1..30}; do
+            if curl -f http://localhost:8081/health; then exit 0; fi
+            sleep 2
+          done
+          exit 1
+      
+      - name: Run integration tests
+        run: pytest tests/ -v
