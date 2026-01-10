@@ -59,6 +59,56 @@ services:
           memory: 512M
           cpus: '0.5'
 
+  # NEW: Sekha Proxy with Web UI and Context Injection
+  sekha-proxy:
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    image: ghcr.io/sekha-ai/proxy:latest
+    ports:
+      - "${PROXY_PORT:-8081}:8081"
+    environment:
+      # Proxy settings
+      - PROXY_HOST=0.0.0.0
+      - PROXY_PORT=8081
+      
+      # Controller connection
+      - CONTROLLER_URL=http://sekha-core:8080
+      - CONTROLLER_API_KEY=${SEKHA_API_KEY:-changeme}
+      - CONTROLLER_TIMEOUT=30
+      
+      # LLM connection (uses bridge)
+      - LLM_PROVIDER=bridge
+      - LLM_URL=http://sekha-bridge:5001
+      - LLM_MODEL=${LLM_MODEL:-llama2}
+      - LLM_TIMEOUT=120
+      
+      # Memory settings
+      - MEMORY_AUTO_INJECT_CONTEXT=${AUTO_INJECT_CONTEXT:-true}
+      - MEMORY_DEFAULT_FOLDER=${DEFAULT_FOLDER:-/work}
+      - MEMORY_CONTEXT_TOKEN_BUDGET=${CONTEXT_BUDGET:-4000}
+      - MEMORY_PREFERRED_LABELS=${PREFERRED_LABELS:-}
+      - MEMORY_EXCLUDED_FOLDERS=${EXCLUDED_FOLDERS:-}
+    depends_on:
+      sekha-core:
+        condition: service_healthy
+      sekha-bridge:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/health"]
+      interval: 30s
+      timeout: 5s
+      start_period: 20s
+      retries: 3
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+        reservations:
+          memory: 128M
+          cpus: '0.1'
+
   chroma:
     image: chromadb/chroma:latest
     expose:
