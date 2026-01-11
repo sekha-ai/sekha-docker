@@ -1,0 +1,88 @@
+# Docker Compose for LOCAL development/testing
+# Builds images from source instead of pulling from registry
+
+services:
+  controller:
+    build:
+      context: ../../sekha-controller
+      dockerfile: Dockerfile
+    ports:
+      - "${CONTROLLER_PORT:-8080}:8080"
+    volumes:
+      - ./data:/data
+    environment:
+      - SERVER_PORT=8080
+      - MCP_API_KEY=${MCP_API_KEY:?MCP_API_KEY required}
+      - REST_API_KEY=${REST_API_KEY:-}
+      - DATABASE_URL=${DATABASE_URL:-sqlite:///data/sekha.db}
+      - OLLAMA_URL=${OLLAMA_URL:-http://host.docker.internal:11434}
+      - CHROMA_URL=${CHROMA_URL:-http://chroma:8000}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - SUMMARIZATION_ENABLED=${SUMMARIZATION_ENABLED:-true}
+      - PRUNING_ENABLED=${PRUNING_ENABLED:-true}
+      - EMBEDDING_MODEL=${EMBEDDING_MODEL:-nomic-embed-text:latest}
+      - SUMMARIZATION_MODEL=${SUMMARIZATION_MODEL:-llama3.1:8b}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      - chroma
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      start_period: 40s
+      retries: 3
+    restart: unless-stopped
+
+  proxy:
+    build:
+      context: ../../sekha-proxy
+      dockerfile: Dockerfile
+    ports:
+      - "${PROXY_PORT:-8081}:8081"
+    environment:
+      # Proxy settings
+      - PROXY_HOST=0.0.0.0
+      - PROXY_PORT=8081
+      
+      # Controller connection
+      - CONTROLLER_URL=${CONTROLLER_URL:-http://controller:8080}
+      - CONTROLLER_API_KEY=${MCP_API_KEY:?MCP_API_KEY required}
+      - CONTROLLER_TIMEOUT=30
+      
+      # LLM connection
+      - LLM_PROVIDER=ollama
+      - LLM_URL=${OLLAMA_URL:-http://host.docker.internal:11434}
+      - LLM_TIMEOUT=120
+      
+      # Memory settings
+      - MEMORY_AUTO_INJECT_CONTEXT=${AUTO_INJECT_CONTEXT:-true}
+      - MEMORY_DEFAULT_FOLDER=${DEFAULT_FOLDER:-/conversations}
+      - MEMORY_CONTEXT_TOKEN_BUDGET=${CONTEXT_TOKEN_BUDGET:-4000}
+      - MEMORY_EXCLUDED_FOLDERS=${EXCLUDED_FOLDERS:-}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      controller:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/health"]
+      interval: 30s
+      timeout: 10s
+      start_period: 20s
+      retries: 3
+    restart: unless-stopped
+
+  chroma:
+    image: chromadb/chroma:latest
+    ports:
+      - "${CHROMA_PORT:-8000}:8000"
+    volumes:
+      - ./chroma_data:/chroma/chroma
+    environment:
+      - IS_PERSISTENT=TRUE
+      - ANONYMIZED_TELEMETRY=FALSE
+    restart: unless-stopped
+
+volumes:
+  chroma_data:
