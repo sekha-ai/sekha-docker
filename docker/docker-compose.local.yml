@@ -11,27 +11,49 @@ services:
     volumes:
       - ./data:/data
     environment:
-      - SERVER_HOST=0.0.0.0
-      - SERVER_PORT=8080
-      - MCP_API_KEY=${MCP_API_KEY:?MCP_API_KEY required}
-      - REST_API_KEY=${REST_API_KEY:-}
-      - DATABASE_URL=${DATABASE_URL:-sqlite:///data/sekha.db}
-      - OLLAMA_URL=${OLLAMA_URL:-http://host.docker.internal:11434}
-      - CHROMA_URL=${CHROMA_URL:-http://chroma:8000}
-      - LOG_LEVEL=${LOG_LEVEL:-info}
-      - SUMMARIZATION_ENABLED=${SUMMARIZATION_ENABLED:-true}
-      - PRUNING_ENABLED=${PRUNING_ENABLED:-true}
-      - EMBEDDING_MODEL=${EMBEDDING_MODEL:-nomic-embed-text:latest}
-      - SUMMARIZATION_MODEL=${SUMMARIZATION_MODEL:-llama3.1:8b}
+      - SEKHA__SERVER_HOST=0.0.0.0
+      - SEKHA__SERVER_PORT=8080
+      - SEKHA__MCP_API_KEY=${MCP_API_KEY:?MCP_API_KEY required}
+      - SEKHA__REST_API_KEY=${REST_API_KEY:-}
+      - SEKHA__DATABASE_URL=${DATABASE_URL:-sqlite:///data/sekha.db}
+      - SEKHA__OLLAMA_URL=${OLLAMA_URL:-http://host.docker.internal:11434}
+      - SEKHA__CHROMA_URL=${CHROMA_URL:-http://chroma:8000}
+      - SEKHA__LOG_LEVEL=${LOG_LEVEL:-info}
+      - SEKHA__SUMMARIZATION_ENABLED=${SUMMARIZATION_ENABLED:-true}
+      - SEKHA__PRUNING_ENABLED=${PRUNING_ENABLED:-true}
+      - SEKHA__EMBEDDING_MODEL=${EMBEDDING_MODEL:-nomic-embed-text:latest}
+      - SEKHA__SUMMARIZATION_MODEL=${SUMMARIZATION_MODEL:-llama3.1:8b}
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:
       - chroma
+      - llm-bridge
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
       interval: 30s
       timeout: 10s
       start_period: 40s
+      retries: 3
+    restart: unless-stopped
+
+  llm-bridge:
+    build:
+      context: ../../sekha-llm-bridge
+      dockerfile: Dockerfile
+    ports:
+      - "${LLM_BRIDGE_PORT:-5001}:5001"
+    environment:
+      - FLASK_ENV=${FLASK_ENV:-production}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - OLLAMA_URL=${OLLAMA_URL:-http://host.docker.internal:11434}
+      - DEFAULT_MODEL=${DEFAULT_MODEL:-llama3.1:8b}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5001/health"]
+      interval: 30s
+      timeout: 10s
+      start_period: 20s
       retries: 3
     restart: unless-stopped
 
