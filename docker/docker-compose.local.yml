@@ -98,7 +98,7 @@ services:
     restart: unless-stopped
 
   chroma:
-    image: chromadb/chroma:latest
+    image: chromadb/chroma:0.4.24
     ports:
       - "${CHROMA_PORT:-8000}:8000"
     volumes:
