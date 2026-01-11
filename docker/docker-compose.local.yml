@@ -11,6 +11,7 @@ services:
     volumes:
       - ./data:/data
     environment:
+      - SERVER_HOST=0.0.0.0
       - SERVER_PORT=8080
       - MCP_API_KEY=${MCP_API_KEY:?MCP_API_KEY required}
       - REST_API_KEY=${REST_API_KEY:-}
