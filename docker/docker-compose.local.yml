@@ -74,9 +74,9 @@ services:
       - CONTROLLER_API_KEY=${MCP_API_KEY:?MCP_API_KEY required}
       - CONTROLLER_TIMEOUT=30
       
-      # LLM connection
+      # LLM connection (through bridge)
       - LLM_PROVIDER=ollama
-      - LLM_URL=${OLLAMA_URL:-http://host.docker.internal:11434}
+      - LLM_URL=${LLM_BRIDGE_URL:-http://llm-bridge:5001}
       - LLM_TIMEOUT=120
       
       # Memory settings
