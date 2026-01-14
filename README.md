@@ -1,4 +1,6 @@
 [![Build and Publish](https://github.com/sekha-ai/sekha-docker/actions/workflows/build-and-publish.yml/badge.svg)](https://github.com/sekha-ai/sekha-docker/actions/workflows/build-and-publish.yml)
+[![Docker](https://img.shields.io/badge/docker-ready-green.svg)](https://github.com/orgs/sekha-ai/packages)
+[![Docker Hub](https://img.shields.io/docker/pulls/sekhaai/controller.svg)](https://hub.docker.com/r/sekhaai/controller)
 
 # Sekha Docker & Deployment
 
@@ -6,7 +8,6 @@ Production-ready Docker images, Kubernetes manifests, and cloud deployment templ
 
 ## 🏗️ Architecture
 
-```
 ┌─────────────────────────────────────────────┐
 │  Web UI (Port 8081)                         │
 │  - Chat interface with memory               │
@@ -37,7 +38,6 @@ Production-ready Docker images, Kubernetes manifests, and cloud deployment templ
 │  (Port 8000) │   │  (Port 6379) │
 │   Vectors    │   │   Caching    │
 └──────────────┘   └──────────────┘
-```
 
 ## 🚀 Quick Start
 
