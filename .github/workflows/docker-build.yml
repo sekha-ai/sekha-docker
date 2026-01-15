@@ -20,19 +20,19 @@ jobs:
 
     steps:
       - name: Checkout sekha-docker
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: sekha-ai/sekha-docker
           path: sekha-docker
 
       - name: Checkout sekha-controller
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: sekha-ai/sekha-controller
           path: sekha-controller
 
       - name: Checkout sekha-mcp
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: sekha-ai/sekha-mcp
           path: sekha-mcp

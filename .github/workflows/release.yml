@@ -36,7 +36,7 @@ jobs:
 
     steps:
       - name: Checkout sekha-controller
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: sekha-ai/sekha-controller
           path: sekha-controller

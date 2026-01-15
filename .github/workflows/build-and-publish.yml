@@ -35,12 +35,12 @@ jobs:
             artifact: sekha-controller-windows-x86_64.exe
     
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
             path: sekha-docker
 
       - name: Checkout sekha-controller
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: sekha-ai/sekha-controller
           path: sekha-controller
@@ -81,19 +81,19 @@ jobs:
         component: [controller, bridge]
     
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           repository: sekha-ai/sekha-docker
           path: sekha-docker
 
       - name: Checkout sekha-controller
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: sekha-ai/sekha-controller
           path: sekha-controller
 
       - name: Checkout sekha-llm-bridge
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: sekha-ai/sekha-llm-bridge
           path: sekha-llm-bridge
@@ -140,7 +140,7 @@ jobs:
     needs: [build-rust-binary, build-docker-images]
     
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       
       - name: Install Syft
         run: |
@@ -168,19 +168,19 @@ jobs:
     needs: build-docker-images
     
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           repository: sekha-ai/sekha-docker
           path: sekha-docker
 
       - name: Checkout sekha-controller
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: sekha-ai/sekha-controller
           path: sekha-controller
 
       - name: Checkout sekha-llm-bridge
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: sekha-ai/sekha-llm-bridge
           path: sekha-llm-bridge
@@ -217,7 +217,7 @@ jobs:
       contents: write
     
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       
       - name: Download all artifacts
         uses: actions/download-artifact@v4
