@@ -65,7 +65,7 @@ jobs:
         working-directory: ./sekha-controller
       
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: ${{ matrix.artifact }}
           path: ./sekha-controller/${{ matrix.artifact }}
@@ -155,7 +155,7 @@ jobs:
           syft packages dir:./sekha-bridge -o spdx-json > sekha-bridge-sbom.json
       
       - name: Upload SBOM artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: sbom-files
           path: |
