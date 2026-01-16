@@ -1,3 +1,17 @@
+# Cargo.toml - COMPLETE REPLACEMENT
+
+[workspace]
+members = []
+
+# This is a Docker orchestration repo - Rust tests live in tests/
+# The Cargo.toml exists only for test infrastructure
+
+[package]
+name = "sekha-docker-tests"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
 [dev-dependencies]
 testcontainers = "0.15"
 tokio = { version = "1.35", features = ["full"] }
