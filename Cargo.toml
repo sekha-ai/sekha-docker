@@ -13,6 +13,6 @@ edition = "2021"
 publish = false
 
 [dev-dependencies]
-testcontainers = "0.15"
+testcontainers = "0.26"
 tokio = { version = "1.35", features = ["full"] }
 reqwest = "0.11"
