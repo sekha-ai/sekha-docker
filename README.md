@@ -7,7 +7,7 @@
 Production-ready Docker images, Kubernetes manifests, and cloud deployment templates for the complete Sekha stack.
 
 ## 🏗️ Architecture
-
+```bash
 ┌─────────────────────────────────────────────┐
 │  Web UI (Port 8081)                         │
 │  - Chat interface with memory               │
@@ -39,6 +39,7 @@ Production-ready Docker images, Kubernetes manifests, and cloud deployment templ
 │   Vectors    │   │   Caching    │
 └──────────────┘   └──────────────┘
 
+```
 ## 🚀 Quick Start
 
 ### Production Deployment (Recommended)
@@ -320,7 +321,7 @@ AGPL-3.0-or-later
 
 - [sekha-controller](https://github.com/sekha-ai/sekha-controller) - Core Rust backend
 - [sekha-proxy](https://github.com/sekha-ai/sekha-proxy) - Python proxy with UI
-- [sekha-mcp](https://github.com/sekha-ai/sekha-mcp) - MCP server integration
+- [sekha-llm-bridge](https://github.com/sekha-ai/sekha-llm-bridge) - LLM Bridge integration
 
 ---
 
