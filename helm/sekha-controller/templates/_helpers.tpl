@@ -43,6 +43,6 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 {{- if .Values.controller.serviceAccount.create }}
 {{- default (include "sekha.fullname" .) .Values.serviceAccount.name }}
 {{- else }}
-{{- default "default" .Values.serviceAccount.name }}
+{{- default "default" .Values.controller.serviceAccount.name }}
 {{- end }}
 {{- end }}
