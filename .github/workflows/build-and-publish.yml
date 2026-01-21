@@ -79,6 +79,11 @@ jobs:
         component: [controller, llm-bridge, proxy]
     
     steps:
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          driver-opts: network=host
+          
       - name: Checkout sekha-docker
         uses: actions/checkout@v6
         with:
