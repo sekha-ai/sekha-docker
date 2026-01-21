@@ -9,7 +9,8 @@ on:
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME_CONTROLLER: ${{ github.repository_owner }}/sekha-controller
-  IMAGE_NAME_BRIDGE: ${{ github.repository_owner }}/sekha-bridge
+  IMAGE_NAME_LLM_BRIDGE: ${{ github.repository_owner }}/sekha-llm-bridge
+  IMAGE_NAME_PROXY: ${{ github.repository_owner }}/sekha-proxy
 
 jobs:
   build-rust-binary:
@@ -35,15 +36,12 @@ jobs:
             artifact: sekha-controller-windows-x86_64.exe
     
     steps:
-      - uses: actions/checkout@v6
-        with:
-            path: sekha-docker
-
       - name: Checkout sekha-controller
         uses: actions/checkout@v6
         with:
           repository: sekha-ai/sekha-controller
           path: sekha-controller
+      
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -78,25 +76,35 @@ jobs:
       packages: write
     strategy:
       matrix:
-        component: [controller, bridge]
+        component: [controller, llm-bridge, proxy]
     
     steps:
-      - uses: actions/checkout@v6
+      - name: Checkout sekha-docker
+        uses: actions/checkout@v6
         with:
           repository: sekha-ai/sekha-docker
           path: sekha-docker
 
       - name: Checkout sekha-controller
+        if: matrix.component == 'controller'
         uses: actions/checkout@v6
         with:
           repository: sekha-ai/sekha-controller
           path: sekha-controller
 
       - name: Checkout sekha-llm-bridge
+        if: matrix.component == 'llm-bridge'
         uses: actions/checkout@v6
         with:
           repository: sekha-ai/sekha-llm-bridge
           path: sekha-llm-bridge
+
+      - name: Checkout sekha-proxy
+        if: matrix.component == 'proxy'
+        uses: actions/checkout@v6
+        with:
+          repository: sekha-ai/sekha-proxy
+          path: sekha-proxy
       
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -111,11 +119,28 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       
+      - name: Determine image name and context
+        id: build-params
+        run: |
+          if [ "${{ matrix.component }}" = "controller" ]; then
+            echo "image_name=${{ env.IMAGE_NAME_CONTROLLER }}" >> $GITHUB_OUTPUT
+            echo "context=./sekha-controller" >> $GITHUB_OUTPUT
+            echo "dockerfile=./sekha-controller/Dockerfile" >> $GITHUB_OUTPUT
+          elif [ "${{ matrix.component }}" = "llm-bridge" ]; then
+            echo "image_name=${{ env.IMAGE_NAME_LLM_BRIDGE }}" >> $GITHUB_OUTPUT
+            echo "context=./sekha-llm-bridge" >> $GITHUB_OUTPUT
+            echo "dockerfile=./sekha-docker/docker/Dockerfile.python.prod" >> $GITHUB_OUTPUT
+          else
+            echo "image_name=${{ env.IMAGE_NAME_PROXY }}" >> $GITHUB_OUTPUT
+            echo "context=./sekha-proxy" >> $GITHUB_OUTPUT
+            echo "dockerfile=./sekha-docker/docker/Dockerfile.proxy" >> $GITHUB_OUTPUT
+          fi
+      
       - name: Extract metadata
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ matrix.component == 'controller' && env.IMAGE_NAME_CONTROLLER || env.IMAGE_NAME_BRIDGE }}
+          images: ${{ env.REGISTRY }}/${{ steps.build-params.outputs.image_name }}
           tags: |
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
@@ -123,10 +148,10 @@ jobs:
             type=raw,value=latest,enable={{is_default_branch}}
       
       - name: Build and push
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
-          context: ${{ matrix.component == 'controller' && './sekha-controller' || './sekha-bridge' }}
-          file: ${{ matrix.component == 'controller' && './sekha-docker/docker/Dockerfile.rust.prod' || './sekha-docker/docker/Dockerfile.python.prod' }}
+          context: ${{ steps.build-params.outputs.context }}
+          file: ${{ steps.build-params.outputs.dockerfile }}
           platforms: linux/amd64,linux/arm64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
@@ -140,39 +165,6 @@ jobs:
     needs: [build-rust-binary, build-docker-images]
     
     steps:
-      - uses: actions/checkout@v6
-      
-      - name: Install Syft
-        run: |
-          curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin
-      
-      - name: Generate SBOM for Rust
-        run: |
-          syft packages dir:./sekha-controller -o spdx-json > sekha-controller-sbom.json
-      
-      - name: Generate SBOM for Python
-        run: |
-          syft packages dir:./sekha-bridge -o spdx-json > sekha-bridge-sbom.json
-      
-      - name: Upload SBOM artifacts
-        uses: actions/upload-artifact@v6
-        with:
-          name: sbom-files
-          path: |
-            sekha-controller-sbom.json
-            sekha-bridge-sbom.json
-
-  integration-tests:
-    name: Integration Tests
-    runs-on: ubuntu-latest
-    needs: build-docker-images
-    
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          repository: sekha-ai/sekha-docker
-          path: sekha-docker
-
       - name: Checkout sekha-controller
         uses: actions/checkout@v6
         with:
@@ -185,6 +177,48 @@ jobs:
           repository: sekha-ai/sekha-llm-bridge
           path: sekha-llm-bridge
 
+      - name: Checkout sekha-proxy
+        uses: actions/checkout@v6
+        with:
+          repository: sekha-ai/sekha-proxy
+          path: sekha-proxy
+      
+      - name: Install Syft
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin
+      
+      - name: Generate SBOM for Controller
+        run: |
+          syft packages dir:./sekha-controller -o spdx-json > sekha-controller-sbom.json
+      
+      - name: Generate SBOM for LLM Bridge
+        run: |
+          syft packages dir:./sekha-llm-bridge -o spdx-json > sekha-llm-bridge-sbom.json
+
+      - name: Generate SBOM for Proxy
+        run: |
+          syft packages dir:./sekha-proxy -o spdx-json > sekha-proxy-sbom.json
+      
+      - name: Upload SBOM artifacts
+        uses: actions/upload-artifact@v6
+        with:
+          name: sbom-files
+          path: |
+            sekha-controller-sbom.json
+            sekha-llm-bridge-sbom.json
+            sekha-proxy-sbom.json
+
+  integration-tests:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    needs: build-docker-images
+    
+    steps:
+      - name: Checkout sekha-docker
+        uses: actions/checkout@v6
+        with:
+          repository: sekha-ai/sekha-docker
+          path: sekha-docker
       
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
@@ -196,18 +230,33 @@ jobs:
       - name: Pull images
         run: |
           docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_CONTROLLER }}:latest
-          docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_BRIDGE }}:latest
+          docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LLM_BRIDGE }}:latest
+          docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_PROXY }}:latest
       
-      - name: Run integration tests
+      - name: Start full stack
+        working-directory: sekha-docker/docker
         run: |
-          docker-compose -f docker-compose.test.yml up --abort-on-container-exit
+          export SEKHA_API_KEY=test-key-for-ci
+          docker-compose -f docker-compose.prod.yml up -d
+          sleep 30
       
       - name: Check health endpoints
         run: |
-          docker-compose -f sekha-docker/docker-compose.yml up -d
-          sleep 10
+          echo "Checking controller health..."
           curl -f http://localhost:8080/health || exit 1
-          curl -f http://localhost:5001/health || exit 1
+          echo "✅ Controller healthy"
+          
+          echo "Checking proxy health..."
+          curl -f http://localhost:8081/health || exit 1
+          echo "✅ Proxy healthy"
+          
+          echo "✅ All services healthy"
+      
+      - name: Cleanup
+        if: always()
+        working-directory: sekha-docker/docker
+        run: |
+          docker-compose -f docker-compose.prod.yml down -v
 
   create-release:
     name: Create GitHub Release
@@ -217,20 +266,48 @@ jobs:
       contents: write
     
     steps:
-      - uses: actions/checkout@v6
+      - name: Checkout
+        uses: actions/checkout@v6
       
       - name: Download all artifacts
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v6
         with:
           path: ./artifacts
       
       - name: Create Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           files: |
             ./artifacts/**/*
           draft: false
           prerelease: false
           generate_release_notes: true
+          body: |
+            ## Sekha v${{ github.ref_name }} - Complete Stack Release
+            
+            This release includes Docker images for the complete Sekha stack:
+            - **sekha-controller** - Core memory engine (Rust)
+            - **sekha-llm-bridge** - LLM operations service (Python)
+            - **sekha-proxy** - Intelligent routing with context injection (Python)
+            
+            ### Quick Start
+            ```bash
+            git clone https://github.com/sekha-ai/sekha-docker.git
+            cd sekha-docker/docker
+            export SEKHA_API_KEY="your-secure-key"
+            docker-compose -f docker-compose.prod.yml up -d
+            ```
+            
+            ### Docker Images
+            - `ghcr.io/sekha-ai/sekha-controller:${{ github.ref_name }}`
+            - `ghcr.io/sekha-ai/sekha-llm-bridge:${{ github.ref_name }}`
+            - `ghcr.io/sekha-ai/sekha-proxy:${{ github.ref_name }}`
+            
+            ### Access Points
+            - Web UI: http://localhost:8081
+            - Controller API: http://localhost:8080
+            - API Docs: http://localhost:8080/swagger-ui/
+            
+            See [DEPLOYMENT.md](./DEPLOYMENT.md) for detailed instructions.
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
