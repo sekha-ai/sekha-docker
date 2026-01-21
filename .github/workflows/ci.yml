@@ -7,52 +7,6 @@ on:
     branches: [ main, develop ]
 
 jobs:
-  security-audit:
-    name: Rust Security Audit
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v6
-
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Install cargo-audit and cargo-deny
-        run: |
-          cargo install cargo-audit cargo-deny
-
-      - name: Run cargo audit
-        working-directory: ./tests
-        run: cargo audit
-
-      - name: Run cargo deny
-        working-directory: ./tests
-        run: cargo deny check
-
-  docker-compose-tests:
-    name: Docker Compose Tests
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v6
-
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Start Docker services
-        run: docker compose -f docker/docker-compose.yml up -d
-
-      - name: Wait for services
-        run: sleep 10
-
-      - name: Run integration tests
-        working-directory: ./tests
-        run: cargo test --test test_docker_compose
-
-      - name: Cleanup
-        if: always()
-        run: docker compose -f docker/docker-compose.yml down -v
-
   validate-deployment:
     name: Validate Deployment URLs
     runs-on: ubuntu-latest
@@ -72,6 +26,26 @@ jobs:
           fi
           echo "✅ URL check complete"
 
+  python-tests:
+    name: Python Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install pytest pyyaml
+
+      - name: Run Python tests
+        run: |
+          pytest tests/ -v
+        
   terraform-validation:
     name: Validate Terraform Configs
     runs-on: ubuntu-latest

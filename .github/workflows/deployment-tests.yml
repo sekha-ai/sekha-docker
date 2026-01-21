@@ -101,14 +101,6 @@ jobs:
           bash -n cloud/gcp/deploy.sh
           echo "✅ Cloud provider scripts validated"
 
-  docker-compose-tests:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-      - uses: dtolnay/rust-toolchain@stable
-      - name: Run Docker Compose tests
-        run: cd tests && cargo test --test test_docker_compose        
-
   status-check:
     name: All Tests Passed
     runs-on: ubuntu-latest
