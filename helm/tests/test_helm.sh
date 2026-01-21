@@ -26,11 +26,12 @@ fi
 # Test 4: Template with custom values
 echo "4. Testing custom values..."
 cat > /tmp/test-values.yaml << EOF
-replicaCount: 3
-image:
-  tag: v1.0.0
-storage:
-  size: 100Gi
+controller:
+  replicaCount: 3
+  image:
+    tag: v1.0.0
+  persistence:
+    size: 100Gi
 EOF
 
 helm template test-release helm/sekha-controller -f /tmp/test-values.yaml > /tmp/helm-custom.yaml
