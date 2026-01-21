@@ -2,60 +2,100 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [ main, develop ]
   pull_request:
-    branches: [main]
+    branches: [ main, develop ]
 
 jobs:
-  validate:
-    name: Validate Docker Compose
+  security-audit:
+    name: Rust Security Audit
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
-      
-      - name: Validate docker-compose syntax
-        run: docker compose -f docker/docker-compose.prod.yml config --quiet
-  
-  build:
-    name: Build Images
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install cargo-audit and cargo-deny
+        run: |
+          cargo install cargo-audit cargo-deny
+
+      - name: Run cargo audit
+        working-directory: ./tests
+        run: cargo audit
+
+      - name: Run cargo deny
+        working-directory: ./tests
+        run: cargo deny check
+
+  docker-compose-tests:
+    name: Docker Compose Tests
     runs-on: ubuntu-latest
-    needs: validate
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
-      
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-      
-      - name: Build controller image
-        run: docker buildx build -f docker/Dockerfile.rust.prod -t sekha-controller:test .
-        working-directory: ../sekha-controller
-        continue-on-error: true
-      
-      - name: Build proxy image  
-        run: docker buildx build -f docker/Dockerfile.proxy -t sekha-proxy:test .
-        working-directory: ../sekha-proxy
-        continue-on-error: true
-  
-  integration-test:
-    name: Integration Tests
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Start Docker services
+        run: docker compose -f docker/docker-compose.yml up -d
+
+      - name: Wait for services
+        run: sleep 10
+
+      - name: Run integration tests
+        working-directory: ./tests
+        run: cargo test --test test_docker_compose
+
+      - name: Cleanup
+        if: always()
+        run: docker compose -f docker/docker-compose.yml down -v
+
+  validate-deployment:
+    name: Validate Deployment URLs
     runs-on: ubuntu-latest
-    needs: validate
     steps:
-      - name: Checkout docker repo
+      - name: Checkout code
         uses: actions/checkout@v6
-      
-      - name: Set up Python
-        uses: actions/setup-python@v6
+
+      - name: Validate docker-compose.prod.yml
+        run: |
+          docker compose -f docker/docker-compose.prod.yml config > /dev/null
+          echo "✅ docker-compose.prod.yml is valid"
+
+      - name: Check for hardcoded URLs
+        run: |
+          if grep -r "localhost" docker/docker-compose.prod.yml; then
+            echo "⚠️  Warning: Found localhost references in production config"
+          fi
+          echo "✅ URL check complete"
+
+  terraform-validation:
+    name: Validate Terraform Configs
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Run Terraform tests
+        run: ./cloud/tests/test_terraform.sh
+
+  helm-validation:
+    name: Validate Helm Charts
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Setup Helm
+        uses: azure/setup-helm@v4
         with:
-          python-version: '3.11'
-      
-      - name: Install test dependencies
-        run: |
-          pip install pytest pytest-asyncio httpx
-      
-      - name: Run smoke tests
-        run: |
-          pytest tests/test_deployment.py -v
-        continue-on-error: true
+          version: 'latest'
+
+      - name: Run Helm tests
+        run: ./helm/tests/test_helm.sh
