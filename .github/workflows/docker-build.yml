@@ -60,7 +60,7 @@ jobs:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_BRIDGE }}
 
       - name: Build and push Rust controller
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: ./sekha-controller
           file: ./sekha-docker/docker/Dockerfile.rust
@@ -71,7 +71,7 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Build and push Python bridge
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: ./sekha-mcp
           file: ./sekha-docker/docker/Dockerfile.python

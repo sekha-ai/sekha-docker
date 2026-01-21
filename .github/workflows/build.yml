@@ -76,7 +76,7 @@ jobs:
             type=sha,prefix={{branch}}-
       
       - name: Build and push controller image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: ./sekha-controller
           file: ./sekha-docker/docker/Dockerfile.rust.prod
@@ -87,7 +87,7 @@ jobs:
           cache-to: type=gha,mode=max
       
       - name: Build and push bridge image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: ./sekha-mcp
           file: ./sekha-docker/docker/Dockerfile.python.prod
