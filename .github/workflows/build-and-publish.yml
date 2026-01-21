@@ -237,7 +237,7 @@ jobs:
         working-directory: sekha-docker/docker
         run: |
           export SEKHA_API_KEY=test-key-for-ci
-          docker-compose -f docker-compose.prod.yml up -d
+          docker compose -f docker-compose.prod.yml up -d
           sleep 30
       
       - name: Check health endpoints
@@ -256,7 +256,7 @@ jobs:
         if: always()
         working-directory: sekha-docker/docker
         run: |
-          docker-compose -f docker-compose.prod.yml down -v
+          docker compose -f docker-compose.prod.yml down -v
 
   create-release:
     name: Create GitHub Release
@@ -295,7 +295,7 @@ jobs:
             git clone https://github.com/sekha-ai/sekha-docker.git
             cd sekha-docker/docker
             export SEKHA_API_KEY="your-secure-key"
-            docker-compose -f docker-compose.prod.yml up -d
+            docker compose -f docker-compose.prod.yml up -d
             ```
             
             ### Docker Images
