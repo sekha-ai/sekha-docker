@@ -73,3 +73,62 @@ jobs:
 
       - name: Run Helm tests
         run: ./helm/tests/test_helm.sh
+
+  deployment-script-tests:
+    name: Test Deployment Scripts
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Test deploy-k8s.sh syntax
+        run: |
+          chmod +x deploy-k8s.sh
+          bash -n deploy-k8s.sh
+          ./deploy-k8s.sh --help
+          echo "✅ deploy-k8s.sh validated"
+
+      - name: Test deploy-cloud.sh syntax
+        run: |
+          chmod +x docker/deploy-cloud.sh
+          bash -n docker/deploy-cloud.sh
+          echo "✅ deploy-cloud.sh validated"
+
+      - name: Test cloud provider scripts
+        run: |
+          chmod +x cloud/azure/deploy.sh cloud/gcp/deploy.sh
+          bash -n cloud/azure/deploy.sh
+          bash -n cloud/gcp/deploy.sh
+          echo "✅ Cloud provider scripts validated"        
+
+  status-check:
+    name: All Tests Passed
+    runs-on: ubuntu-latest
+    needs: [helm-validation, terraform-validation, validate-deployment, python-tests, deployment-script-tests]
+    if: always()
+    
+    steps:
+      - name: Check status
+        run: |
+          if [ "${{ needs.helm-validation.result }}" != "success" ]; then
+            echo "❌ Helm tests failed"
+            exit 1
+          fi
+          if [ "${{ needs.terraform-validation.result }}" != "success" ]; then
+            echo "❌ Terraform tests failed"
+            exit 1
+          fi
+          if [ "${{ needs.validate-deployment.result }}" != "success" ]; then
+            echo "❌ Docker URL tests failed"
+            exit 1
+          fi
+          if [ "${{ needs.python-tests.result }}" != "success" ]; then
+            echo "❌ Python tests failed"
+            exit 1
+          fi
+          if [ "${{ needs.deployment-script-tests.result }}" != "success" ]; then
+            echo "❌ Deployment script tests failed"
+            exit 1
+          fi
+          echo "✅ All deployment tests passed!"          

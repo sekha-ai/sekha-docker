@@ -1,6 +1,13 @@
-[![Build and Publish](https://github.com/sekha-ai/sekha-docker/actions/workflows/build-and-publish.yml/badge.svg)](https://github.com/sekha-ai/sekha-docker/actions/workflows/build-and-publish.yml)
-[![Docker](https://img.shields.io/badge/docker-ready-green.svg)](https://github.com/orgs/sekha-ai/packages)
-[![Docker Hub](https://img.shields.io/docker/pulls/sekhaai/controller.svg)](https://hub.docker.com/r/sekhaai/controller)
+[![CI](https://github.com/sekha-ai/sekha-docker/actions/workflows/ci.yml/badge.svg)](https://github.com/sekha-ai/sekha-docker/actions/workflows/ci.yml)
+[![Build and Push](https://github.com/sekha-ai/sekha-docker/actions/workflows/build.yml/badge.svg)](https://github.com/sekha-ai/sekha-docker/actions/workflows/build.yml)
+[![Security](https://github.com/sekha-ai/sekha-docker/security/code-scanning/badge.svg)](https://github.com/sekha-ai/sekha-docker/security/code-scanning)
+[![License](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
+
+## Docker Images
+
+[![Controller](https://img.shields.io/badge/ghcr.io-sekha--controller-blue)](https://github.com/sekha-ai/sekha-docker/pkgs/container/sekha-controller)
+[![LLM Bridge](https://img.shields.io/badge/ghcr.io-sekha--llm--bridge-blue)](https://github.com/sekha-ai/sekha-docker/pkgs/container/sekha-llm-bridge)
+[![Proxy](https://img.shields.io/badge/ghcr.io-sekha--proxy-blue)](https://github.com/sekha-ai/sekha-docker/pkgs/container/sekha-proxy)
 
 # Sekha Docker & Deployment
 
