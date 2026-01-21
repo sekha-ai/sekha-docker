@@ -13,7 +13,7 @@ on:
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME_CONTROLLER: sekha-ai/sekha-controller
-  IMAGE_NAME_BRIDGE: sekha-ai/sekha-mcp
+  IMAGE_NAME_BRIDGE: sekha-ai/sekha-llm-bridge
 
 jobs:
   build-and-push:
@@ -35,11 +35,11 @@ jobs:
           repository: sekha-ai/sekha-controller
           path: sekha-controller
       
-      - name: Checkout sekha-mcp
+      - name: Checkout sekha-llm-bridge
         uses: actions/checkout@v6
         with:
-          repository: sekha-ai/sekha-mcp
-          path: sekha-mcp
+          repository: sekha-ai/sekha-llm-bridge
+          path: sekha-llm-bridge
       
       - name: Log in to Container Registry
       

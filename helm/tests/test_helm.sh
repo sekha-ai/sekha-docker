@@ -3,6 +3,10 @@ set -e
 
 echo "🧪 Testing Helm Chart..."
 
+# Fetch dependencies
+echo "0. Fetching chart dependencies..."
+helm dependency build helm/sekha-controller
+
 # Test 1: Lint chart
 echo "1. Linting chart..."
 helm lint helm/sekha-controller
