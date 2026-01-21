@@ -87,7 +87,7 @@ jobs:
       - name: Build and push bridge image
         uses: docker/build-push-action@v6
         with:
-          context: ./sekha-mcp
+          context: ./sekha-llm-bridge
           file: ./sekha-docker/docker/Dockerfile.python.prod
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta-bridge.outputs.tags }}
