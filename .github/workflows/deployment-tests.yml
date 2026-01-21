@@ -63,7 +63,7 @@ jobs:
 
       - name: Validate docker-compose syntax
         run: |
-          docker-compose -f docker/docker-compose.prod.yml config > /dev/null
+          docker compose -f docker/docker-compose.prod.yml config > /dev/null
           echo "✅ docker-compose.prod.yml is valid"
 
       - name: Test deploy-docker.sh script syntax

@@ -129,11 +129,11 @@ jobs:
           elif [ "${{ matrix.component }}" = "llm-bridge" ]; then
             echo "image_name=${{ env.IMAGE_NAME_LLM_BRIDGE }}" >> $GITHUB_OUTPUT
             echo "context=./sekha-llm-bridge" >> $GITHUB_OUTPUT
-            echo "dockerfile=./sekha-docker/docker/Dockerfile.python.prod" >> $GITHUB_OUTPUT
+            echo "dockerfile=./sekha-llm-bridge/Dockerfile" >> $GITHUB_OUTPUT
           else
             echo "image_name=${{ env.IMAGE_NAME_PROXY }}" >> $GITHUB_OUTPUT
             echo "context=./sekha-proxy" >> $GITHUB_OUTPUT
-            echo "dockerfile=./sekha-docker/docker/Dockerfile.proxy" >> $GITHUB_OUTPUT
+            echo "dockerfile=./sekha-proxy/Dockerfile" >> $GITHUB_OUTPUT
           fi
       
       - name: Extract metadata

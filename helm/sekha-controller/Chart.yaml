@@ -22,13 +22,8 @@ dependencies:
     repository: https://charts.bitnami.com/bitnami
     condition: redis.enabled
 
-  - name: chroma
-    version: "0.1.0"
-    repository: https://sekha-ai.github.io/helm-charts
-    condition: chroma.enabled
-  
   - name: chromadb
-    version: "0.1.0"  # Adjust based on available chart
-    repository: https://chroma-core.github.io/chroma  # Or wherever chromadb helm chart is hosted
-    condition: chromadb.enabled
-    alias: chroma
+    version: "0.1.5"  # Latest verified version
+    repository: https://amikos-tech.github.io/chromadb-chart/
+    condition: chroma.enabled
+    alias: chroma  # This makes it accessible as "chroma" in values.yaml
