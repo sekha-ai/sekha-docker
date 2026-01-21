@@ -18,10 +18,17 @@ maintainers:
     email: team@sekha-ai.dev
 dependencies:
   - name: redis
-    version: 17.x.x
+    version: "~18.0.0"
     repository: https://charts.bitnami.com/bitnami
     condition: redis.enabled
+
   - name: chroma
-    version: 0.1.x
+    version: "0.1.0"
     repository: https://sekha-ai.github.io/helm-charts
     condition: chroma.enabled
+  
+  - name: chromadb
+    version: "0.1.0"  # Adjust based on available chart
+    repository: https://chroma-core.github.io/chroma  # Or wherever chromadb helm chart is hosted
+    condition: chromadb.enabled
+    alias: chroma
