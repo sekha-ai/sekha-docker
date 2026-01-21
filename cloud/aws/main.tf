@@ -33,7 +33,7 @@ variable "app_version" {
 # VPC
 resource "aws_vpc" "main" {
   cidr_block = "10.0.0.0/16"
-  
+
   tags = {
     Name = "${var.app_name}-vpc"
   }
@@ -41,10 +41,10 @@ resource "aws_vpc" "main" {
 
 # Subnets
 resource "aws_subnet" "public" {
-  count = 2
+  count      = 2
   vpc_id     = aws_vpc.main.id
   cidr_block = "10.0.${count.index + 1}.0/24"
-  
+
   tags = {
     Name = "${var.app_name}-public-${count.index}"
   }
@@ -53,7 +53,7 @@ resource "aws_subnet" "public" {
 # Internet Gateway
 resource "aws_internet_gateway" "main" {
   vpc_id = aws_vpc.main.id
-  
+
   tags = {
     Name = "${var.app_name}-igw"
   }
@@ -62,12 +62,12 @@ resource "aws_internet_gateway" "main" {
 # Route Table
 resource "aws_route_table" "public" {
   vpc_id = aws_vpc.main.id
-  
+
   route {
     cidr_block = "0.0.0.0/0"
     gateway_id = aws_internet_gateway.main.id
   }
-  
+
   tags = {
     Name = "${var.app_name}-rt"
   }
@@ -75,7 +75,7 @@ resource "aws_route_table" "public" {
 
 # Route Table Association
 resource "aws_route_table_association" "public" {
-  count = 2
+  count          = 2
   subnet_id      = aws_subnet.public[count.index].id
   route_table_id = aws_route_table.public.id
 }
@@ -85,7 +85,7 @@ resource "aws_security_group" "main" {
   name        = "${var.app_name}-sg"
   description = "Security group for ${var.app_name}"
   vpc_id      = aws_vpc.main.id
-  
+
   # HTTP
   ingress {
     from_port   = 8080
@@ -93,7 +93,7 @@ resource "aws_security_group" "main" {
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
-  
+
   # Health check
   ingress {
     from_port   = 8080
@@ -101,7 +101,7 @@ resource "aws_security_group" "main" {
     protocol    = "tcp"
     cidr_blocks = ["10.0.0.0/16"]
   }
-  
+
   # All outbound
   egress {
     from_port   = 0
@@ -109,7 +109,7 @@ resource "aws_security_group" "main" {
     protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
   }
-  
+
   tags = {
     Name = "${var.app_name}-sg"
   }
@@ -118,12 +118,12 @@ resource "aws_security_group" "main" {
 # ECS Cluster
 resource "aws_ecs_cluster" "main" {
   name = "${var.app_name}-cluster"
-  
+
   setting {
     name  = "containerInsights"
     value = "enabled"
   }
-  
+
   tags = {
     Name = "${var.app_name}-cluster"
   }
@@ -133,7 +133,7 @@ resource "aws_ecs_cluster" "main" {
 resource "aws_cloudwatch_log_group" "main" {
   name              = "/ecs/${var.app_name}"
   retention_in_days = 7
-  
+
   tags = {
     Name = "${var.app_name}-logs"
   }
@@ -147,22 +147,22 @@ resource "aws_ecs_task_definition" "main" {
   cpu                      = "512"
   memory                   = "1024"
   execution_role_arn       = aws_iam_role.ecs_task_execution.arn
-  task_role_arn           = aws_iam_role.ecs_task.arn
-  
+  task_role_arn            = aws_iam_role.ecs_task.arn
+
   container_definitions = jsonencode([
     {
       name  = "sekha-core"
       image = "ghcr.io/sekha-ai/sekha-controller:${var.app_version}"
-      
+
       essential = true
-      
+
       portMappings = [
         {
           containerPort = 8080
           protocol      = "tcp"
         }
       ]
-      
+
       environment = [
         {
           name  = "SEKHA_DATABASE_URL"
@@ -181,7 +181,7 @@ resource "aws_ecs_task_definition" "main" {
           value = "info"
         }
       ]
-      
+
       logConfiguration = {
         logDriver = "awslogs"
         options = {
@@ -190,7 +190,7 @@ resource "aws_ecs_task_definition" "main" {
           awslogs-stream-prefix = "ecs"
         }
       }
-      
+
       healthCheck = {
         command     = ["CMD-SHELL", "curl -f http://localhost:8080/health || exit 1"]
         interval    = 30
@@ -198,7 +198,7 @@ resource "aws_ecs_task_definition" "main" {
         retries     = 3
         startPeriod = 10
       }
-      
+
       mountPoints = [
         {
           sourceVolume  = "sekha-data"
@@ -207,17 +207,17 @@ resource "aws_ecs_task_definition" "main" {
       ]
     }
   ])
-  
+
   volume {
     name = "sekha-data"
-    
+
     efs_volume_configuration {
       file_system_id     = aws_efs_file_system.main.id
       root_directory     = "/"
       transit_encryption = "ENABLED"
     }
   }
-  
+
   tags = {
     Name = "${var.app_name}-task"
   }
@@ -226,7 +226,7 @@ resource "aws_ecs_task_definition" "main" {
 # IAM Role for ECS Task Execution
 resource "aws_iam_role" "ecs_task_execution" {
   name = "${var.app_name}-execution-role"
-  
+
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
@@ -239,7 +239,7 @@ resource "aws_iam_role" "ecs_task_execution" {
       }
     ]
   })
-  
+
   tags = {
     Name = "${var.app_name}-execution-role"
   }
@@ -248,7 +248,7 @@ resource "aws_iam_role" "ecs_task_execution" {
 # IAM Role for ECS Task
 resource "aws_iam_role" "ecs_task" {
   name = "${var.app_name}-task-role"
-  
+
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
@@ -261,7 +261,7 @@ resource "aws_iam_role" "ecs_task" {
       }
     ]
   })
-  
+
   tags = {
     Name = "${var.app_name}-task-role"
   }
@@ -280,23 +280,23 @@ resource "aws_ecs_service" "main" {
   task_definition = aws_ecs_task_definition.main.arn
   desired_count   = 1
   launch_type     = "FARGATE"
-  
+
   network_configuration {
     subnets          = aws_subnet.public[*].id
     security_groups  = [aws_security_group.main.id]
     assign_public_ip = true
   }
-  
+
   load_balancer {
     target_group_arn = aws_lb_target_group.main.arn
     container_name   = "sekha-core"
     container_port   = 8080
   }
-  
+
   health_check_grace_period_seconds = 60
-  
+
   depends_on = [aws_lb_listener.main]
-  
+
   tags = {
     Name = "${var.app_name}-service"
   }
@@ -309,7 +309,7 @@ resource "aws_lb" "main" {
   load_balancer_type = "application"
   security_groups    = [aws_security_group.main.id]
   subnets            = aws_subnet.public[*].id
-  
+
   tags = {
     Name = "${var.app_name}-lb"
   }
@@ -321,7 +321,7 @@ resource "aws_lb_target_group" "main" {
   port     = 8080
   protocol = "HTTP"
   vpc_id   = aws_vpc.main.id
-  
+
   health_check {
     enabled             = true
     healthy_threshold   = 2
@@ -333,7 +333,7 @@ resource "aws_lb_target_group" "main" {
     timeout             = 5
     unhealthy_threshold = 3
   }
-  
+
   tags = {
     Name = "${var.app_name}-tg"
   }
@@ -344,7 +344,7 @@ resource "aws_lb_listener" "main" {
   load_balancer_arn = aws_lb.main.arn
   port              = "80"
   protocol          = "HTTP"
-  
+
   default_action {
     type             = "forward"
     target_group_arn = aws_lb_target_group.main.arn
@@ -354,7 +354,7 @@ resource "aws_lb_listener" "main" {
 # EFS for persistent storage
 resource "aws_efs_file_system" "main" {
   creation_token = "${var.app_name}-fs"
-  
+
   tags = {
     Name = "${var.app_name}-fs"
   }

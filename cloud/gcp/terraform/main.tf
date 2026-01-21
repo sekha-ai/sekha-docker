@@ -38,7 +38,7 @@ resource "google_sql_database_instance" "sekha_db" {
 
   settings {
     tier = "db-f1-micro"
-    
+
     ip_configuration {
       ipv4_enabled = true
       authorized_networks {
@@ -74,7 +74,7 @@ resource "google_cloud_run_v2_service" "sekha_controller" {
   template {
     containers {
       image = "ghcr.io/sekha-ai/sekha-controller:latest"
-      
+
       ports {
         container_port = 8080
       }
@@ -112,7 +112,7 @@ resource "google_cloud_run_v2_service" "sekha_chroma" {
   template {
     containers {
       image = "chromadb/chroma:latest"
-      
+
       ports {
         container_port = 8000
       }
