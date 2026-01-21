@@ -40,7 +40,7 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 
 {{/* Create the name of the service account to use */}}
 {{- define "sekha.serviceAccountName" -}}
-{{- if .Values.serviceAccount.create }}
+{{- if .Values.controller.serviceAccount.create }}
 {{- default (include "sekha.fullname" .) .Values.serviceAccount.name }}
 {{- else }}
 {{- default "default" .Values.serviceAccount.name }}
