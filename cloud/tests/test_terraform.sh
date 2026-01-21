@@ -21,6 +21,7 @@ echo ""
 echo "2. Validating GCP Terraform..."
 cd cloud/gcp
 terraform init -backend=false
+terraform fmt -recursive
 terraform fmt -check -recursive || {
   echo "❌ Terraform formatting issues detected. Run 'terraform fmt -recursive' to fix."
   exit 1
