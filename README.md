@@ -1,6 +1,6 @@
 [![CI](https://github.com/sekha-ai/sekha-docker/actions/workflows/ci.yml/badge.svg)](https://github.com/sekha-ai/sekha-docker/actions/workflows/ci.yml)
 [![Build and Push](https://github.com/sekha-ai/sekha-docker/actions/workflows/build.yml/badge.svg)](https://github.com/sekha-ai/sekha-docker/actions/workflows/build.yml)
-[![Security](https://github.com/sekha-ai/sekha-docker/security/code-scanning/badge.svg)](https://github.com/sekha-ai/sekha-docker/security/code-scanning)
+[![Security](https://github.com/sekha-ai/sekha-docker/actions/workflows/security.yml/badge.svg)](https://github.com/sekha-ai/sekha-docker/actions/workflows/security.yml)
 [![License](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 
 ## Docker Images
@@ -158,13 +158,13 @@ Pre-built images on GitHub Container Registry:
 
 ```bash
 # Controller (Rust)
-docker pull ghcr.io/sekha-ai/controller:latest
+docker pull ghcr.io/sekha-ai/sekha-controller:latest
 
 # Bridge (Python)
-docker pull ghcr.io/sekha-ai/llm-bridge:latest
+docker pull ghcr.io/sekha-ai/sekha-llm-bridge:latest
 
 # Proxy (Python) - NEW
-docker pull ghcr.io/sekha-ai/proxy:latest
+docker pull ghcr.io/sekha-ai/sekha-proxy:latest
 ```
 
 ### Build from Source
