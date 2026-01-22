@@ -2,7 +2,7 @@ services:
   sekha-core:
     extra_hosts:
       - "host.docker.internal:host-gateway"
-    image: ghcr.io/sekha-ai/controller:latest
+    image: ghcr.io/sekha-ai/sekha-controller:latest
     ports:
       - "${SEKHA_PORT:-8080}:8080"
     volumes:
@@ -34,7 +34,7 @@ services:
   sekha-bridge:
     extra_hosts:
       - "host.docker.internal:host-gateway"
-    image: ghcr.io/sekha-ai/llm-bridge:latest
+    image: ghcr.io/sekha-ai/sekha-llm-bridge:latest
     expose:
       - "5001"
     environment:
@@ -63,7 +63,7 @@ services:
   sekha-proxy:
     extra_hosts:
       - "host.docker.internal:host-gateway"
-    image: ghcr.io/sekha-ai/proxy:latest
+    image: ghcr.io/sekha-ai/sekha-proxy:latest
     ports:
       - "${PROXY_PORT:-8081}:8081"
     environment:
@@ -118,7 +118,7 @@ services:
     restart: unless-stopped
 
   redis:
-    image: redis:7-alpine
+    image: redis:7.4-alpine
     expose:
       - "6379"
     volumes:

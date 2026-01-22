@@ -2,7 +2,7 @@
 # Multi-stage build with Poetry
 
 # Stage 1: Builder
-FROM python:3.11-slim AS builder
+FROM python:3.13-slim AS builder
 
 WORKDIR /app
 
@@ -23,7 +23,7 @@ RUN poetry config virtualenvs.create false && \
     poetry install --no-dev --no-interaction --no-ansi
 
 # Stage 2: Runtime
-FROM python:3.11-slim
+FROM python:3.13-slim
 
 WORKDIR /app
 
