@@ -64,25 +64,28 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu libc6-dev-arm64-cross
           
-          # Add target FIRST
+          # Add target
           rustup target add aarch64-unknown-linux-gnu
+          rustup target list --installed
           
-          # Verify it's installed
-          rustup target list --installed | grep aarch64
-          
-          # Configure cargo linker
-          mkdir -p ~/.cargo
-          cat >> ~/.cargo/config.toml << EOF
+          # Create cargo config in the project directory
+          mkdir -p sekha-controller/.cargo
+          cat > sekha-controller/.cargo/config.toml << 'EOF'
           [target.aarch64-unknown-linux-gnu]
           linker = "aarch64-linux-gnu-gcc"
           EOF
           
-          # Show config
-          cat ~/.cargo/config.toml
+          cat sekha-controller/.cargo/config.toml
+        env:
+          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
+          CC_aarch64_unknown_linux_gnu: aarch64-linux-gnu-gcc
+          CXX_aarch64_unknown_linux_gnu: aarch64-linux-gnu-g++
       
       - name: Build
         run: cargo build --release --target ${{ matrix.target }}
         working-directory: ./sekha-controller
+        env:
+          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
       
       - name: Rename binary
         run: |
