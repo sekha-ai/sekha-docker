@@ -42,6 +42,12 @@ jobs:
           repository: sekha-ai/sekha-controller
           path: sekha-controller
       
+      - name: Install Xcode Command Line Tools (macOS)
+        if: matrix.os == 'macos-latest'
+        run: |
+          sudo xcode-select --install || true
+          sudo xcode-select --switch /Applications/Xcode.app/Contents/Developer
+          
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
