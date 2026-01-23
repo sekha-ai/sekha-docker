@@ -331,7 +331,18 @@ jobs:
         run: |
           export SEKHA_API_KEY=test-key-for-ci
           docker compose -f docker-compose.prod.yml up -d
-          sleep 30
+          
+          echo "Waiting for containers to start..."
+          sleep 60  # Increased from 30
+          
+          echo "Container status:"
+          docker compose -f docker-compose.prod.yml ps
+          
+          echo "Bridge container logs:"
+          docker compose -f docker-compose.prod.yml logs sekha-bridge
+          
+          echo "Controller container logs:"
+          docker compose -f docker-compose.prod.yml logs sekha-controller
       
       - name: Check health endpoints
         run: |
