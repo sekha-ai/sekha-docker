@@ -332,17 +332,29 @@ jobs:
           export SEKHA_API_KEY=test-key-for-ci
           docker compose -f docker-compose.prod.yml up -d
           
-          echo "Waiting for containers to start..."
-          sleep 60  # Increased from 30
+          echo "Waiting 60 seconds..."
+          sleep 60
           
-          echo "Container status:"
-          docker compose -f docker-compose.prod.yml ps
+          echo "=== Container Status ==="
+          docker compose -f docker-compose.prod.yml ps -a
           
-          echo "Bridge container logs:"
-          docker compose -f docker-compose.prod.yml logs sekha-bridge
+          echo "=== Bridge Container Inspect ==="
+          docker inspect docker-sekha-bridge-1 --format='{{json .State.Health}}' | jq '.'
           
-          echo "Controller container logs:"
-          docker compose -f docker-compose.prod.yml logs sekha-controller
+          echo "=== Bridge Container Logs ==="
+          docker logs docker-sekha-bridge-1 --tail 100
+          
+          echo "=== Core Container Inspect ==="
+          docker inspect docker-sekha-core-1 --format='{{json .State.Health}}' | jq '.'
+          
+          echo "=== Core Container Logs ==="
+          docker logs docker-sekha-core-1 --tail 100
+          
+          echo "=== Manual Health Check - Bridge ==="
+          docker exec docker-sekha-bridge-1 python -c "import urllib.request; urllib.request.urlopen('http://localhost:5001/health')" || echo "Bridge health check failed"
+          
+          echo "=== Manual Health Check - Core ==="
+          docker exec docker-sekha-core-1 curl -f http://localhost:8080/health || echo "Core health check failed"
       
       - name: Check health endpoints
         run: |
