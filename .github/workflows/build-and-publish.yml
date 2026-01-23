@@ -41,6 +41,13 @@ jobs:
         with:
           repository: sekha-ai/sekha-controller
           path: sekha-controller
+          
+      - name: Override rust-toolchain for cross-compilation
+        if: matrix.target != 'x86_64-unknown-linux-gnu' && matrix.os == 'ubuntu-latest'
+        working-directory: ./sekha-controller
+        run: |
+          echo "Removing rust-toolchain.toml to allow cross-compilation"
+          mv rust-toolchain.toml rust-toolchain.toml.bak || true
       
       - name: Install Xcode Command Line Tools (macOS)
         if: matrix.os == 'macos-latest'
