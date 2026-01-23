@@ -69,20 +69,22 @@ jobs:
       - name: Install cross-compilation tools (aarch64)
         if: matrix.os == 'ubuntu-latest' && matrix.target == 'aarch64-unknown-linux-gnu'
         run: |
-          # Disable arm64 in main sources.list only if it doesn't already have [arch=...]
-          sudo sed -i 's/^deb \(http\|https\)/deb [arch=amd64,i386] \1/' /etc/apt/sources.list
-          sudo sed -i 's/^deb-src \(http\|https\)/deb-src [arch=amd64,i386] \1/' /etc/apt/sources.list
+          # Completely rewrite sources.list with explicit arch
+          sudo tee /etc/apt/sources.list <<'EOF'
+          deb [arch=amd64] http://archive.ubuntu.com/ubuntu/ noble main restricted universe multiverse
+          deb [arch=amd64] http://archive.ubuntu.com/ubuntu/ noble-updates main restricted universe multiverse
+          deb [arch=amd64] http://archive.ubuntu.com/ubuntu/ noble-backports main restricted universe multiverse
+          deb [arch=amd64] http://security.ubuntu.com/ubuntu/ noble-security main restricted universe multiverse
+          EOF
           
-          # For sources.list.d, just disable/rename problematic files
-          if [ -f /etc/apt/sources.list.d/microsoft-prod.list ]; then
-            sudo mv /etc/apt/sources.list.d/microsoft-prod.list /etc/apt/sources.list.d/microsoft-prod.list.disabled
-          fi
+          # Disable microsoft sources
+          sudo rm -f /etc/apt/sources.list.d/microsoft-prod.list
           
           # Add arm64 architecture
           sudo dpkg --add-architecture arm64
           
-          # Add arm64 repos from ports
-          sudo tee /etc/apt/sources.list.d/arm64.list <<EOF
+          # Add arm64 repos
+          sudo tee /etc/apt/sources.list.d/arm64.list <<'EOF'
           deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports noble main restricted universe multiverse
           deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports noble-updates main restricted universe multiverse
           deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports noble-security main restricted universe multiverse
@@ -98,6 +100,7 @@ jobs:
           [target.aarch64-unknown-linux-gnu]
           linker = "aarch64-linux-gnu-gcc"
           EOF
+
 
         env:
           CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
