@@ -115,6 +115,7 @@ jobs:
           OPENSSL_INCLUDE_DIR: /usr/include
       
       - name: Build
+        shell: bash
         run: |
           if [ "${{ matrix.target }}" = "aarch64-unknown-linux-gnu" ]; then
             export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc
