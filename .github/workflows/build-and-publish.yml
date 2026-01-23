@@ -69,6 +69,16 @@ jobs:
       - name: Install cross-compilation tools (aarch64)
         if: matrix.os == 'ubuntu-latest' && matrix.target == 'aarch64-unknown-linux-gnu'
         run: |
+          echo "=== BEFORE: sources.list ==="
+          cat /etc/apt/sources.list
+          
+          echo "=== BEFORE: sources.list.d files ==="
+          ls -la /etc/apt/sources.list.d/
+          for file in /etc/apt/sources.list.d/*.list; do
+            echo "--- $file ---"
+            cat "$file" || true
+          done
+          
           # Completely rewrite sources.list with explicit arch
           sudo tee /etc/apt/sources.list <<'EOF'
           deb [arch=amd64] http://archive.ubuntu.com/ubuntu/ noble main restricted universe multiverse
@@ -77,8 +87,8 @@ jobs:
           deb [arch=amd64] http://security.ubuntu.com/ubuntu/ noble-security main restricted universe multiverse
           EOF
           
-          # Disable microsoft sources
-          sudo rm -f /etc/apt/sources.list.d/microsoft-prod.list
+          # Remove ALL sources.list.d files to be sure
+          sudo rm -f /etc/apt/sources.list.d/*.list
           
           # Add arm64 architecture
           sudo dpkg --add-architecture arm64
@@ -90,7 +100,14 @@ jobs:
           deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports noble-security main restricted universe multiverse
           EOF
           
-          sudo apt-get update
+          echo "=== AFTER: sources.list ==="
+          cat /etc/apt/sources.list
+          
+          echo "=== AFTER: sources.list.d files ==="
+          ls -la /etc/apt/sources.list.d/
+          cat /etc/apt/sources.list.d/arm64.list
+          
+          sudo apt-get update || true
           sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu libc6-dev-arm64-cross libssl-dev:arm64
           
           rustup target add aarch64-unknown-linux-gnu
@@ -100,7 +117,6 @@ jobs:
           [target.aarch64-unknown-linux-gnu]
           linker = "aarch64-linux-gnu-gcc"
           EOF
-
 
         env:
           CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
