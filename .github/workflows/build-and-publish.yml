@@ -329,7 +329,6 @@ jobs:
       - name: Start full stack
         working-directory: sekha-docker/docker
         run: |
-          # Create minimal config file
           cat > config.prod.toml <<'EOF'
           [server]
           host = "0.0.0.0"
@@ -346,33 +345,28 @@ jobs:
           EOF
           
           export SEKHA_API_KEY=test-key-for-ci
+          docker compose -f docker-compose.prod.yml up -d
           
-          # Start without waiting for health checks
-          docker compose -f docker-compose.prod.yml up -d --wait || true
+          echo "Waiting 90 seconds for all services..."
+          sleep 90
           
-          echo "Waiting for startup..."
-          sleep 30
+          docker compose -f docker-compose.prod.yml ps
           
-          echo "=== All Container Status ==="
-          docker compose -f docker-compose.prod.yml ps -a
+          echo "=== Bridge Logs ===" 
+          docker logs docker-sekha-bridge-1 2>&1 || echo "Bridge not running"
           
-          echo "=== Bridge Logs ==="
-          docker logs docker-sekha-bridge-1 2>&1 || true
+          echo "=== Core Logs ===" 
+          docker logs docker-sekha-core-1 2>&1 || echo "Core not running"
           
-          echo "=== Core Logs ==="
-          docker logs docker-sekha-core-1 2>&1 || true
-          
-          echo "=== Proxy Logs ==="
-          docker logs docker-sekha-proxy-1 2>&1 || true
+          echo "=== Proxy Logs ===" 
+          docker logs docker-sekha-proxy-1 2>&1 || echo "Proxy not running"
       
       - name: Check health endpoints
         run: |
-          echo "Checking controller health..."
-          curl -f http://localhost:8080/health || exit 1
+          curl -f http://localhost:8080/health || (echo "❌ Controller failed"; exit 1)
           echo "✅ Controller healthy"
           
-          echo "Checking proxy health..."
-          curl -f http://localhost:8081/health || exit 1
+          curl -f http://localhost:8081/health || (echo "❌ Proxy failed"; exit 1)
           echo "✅ Proxy healthy"
           
           echo "✅ All services healthy"
