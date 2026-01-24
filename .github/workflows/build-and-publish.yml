@@ -341,40 +341,8 @@ jobs:
       - name: Start full stack
         working-directory: sekha-docker/docker
         run: |
-          cat > config.prod.toml <<'EOF'
-          # Sekha Production Configuration
-          
-          [server]
-          host = "0.0.0.0"
-          port = 8080
-          cors_origins = ["*"]
-          
-          [database]
-          url = "sqlite:///data/sekha.db?mode=rwc"
-          max_connections = 10
-          
-          [chroma]
-          url = "http://chroma:8000"
-          collection_name = "sekha_conversations"
-          
-          [llm_bridge]
-          url = "http://sekha-bridge:5001"
-          timeout_secs = 30
-          
-          [ollama]
-          url = "http://host.docker.internal:11434"
-          model = "llama3.1:8b"
-          embedding_model = "nomic-embed-text:latest"
-          
-          # API Configuration
-          [api]
-          api_keys = ["test_key_12345678901234567890123456789012"]
-          rate_limit_per_minute = 1000
-          cors_enabled = true
-          summarization_enabled = true
-          pruning_enabled = true
-          EOF
-          
+          # The config.prod.toml already exists in the repo - DON'T recreate it
+          # Just set the API key to match what's in the file
           export SEKHA_API_KEY=test_key_12345678901234567890123456789012
           docker compose -f docker-compose.prod.yml up -d
           
