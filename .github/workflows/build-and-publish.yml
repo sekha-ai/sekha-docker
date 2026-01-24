@@ -319,6 +319,24 @@ jobs:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Start Ollama for bridge
+        run: |
+          docker run -d \
+            --name ollama \
+            --network host \
+            ollama/ollama:latest
+          
+          echo "Waiting for Ollama..."
+          for i in {1..30}; do
+            if curl -f http://localhost:11434/api/tags 2>/dev/null; then
+              echo "✅ Ollama ready"
+              break
+            fi
+            sleep 2
+          done
+          
+          docker exec ollama ollama pull nomic-embed-text:latest          
       
       - name: Pull images
         run: |
