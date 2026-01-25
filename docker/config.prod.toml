@@ -1,30 +1,17 @@
-# Sekha Production Configuration
+# Sekha Production Configuration - Flat structure to match Config struct
 
-# Server configuration (flat, not nested)
 server_host = "0.0.0.0"
 server_port = 8080
-
-[database]
-url = "sqlite:///data/sekha.db?mode=rwc"
-max_connections = 10
-
-[chroma]
-url = "http://chroma:8000"
-collection_name = "sekha_conversations"
-
-[llm_bridge]
-url = "http://sekha-bridge:5001"
-timeout_secs = 30
-
-[ollama]
-url = "http://host.docker.internal:11434"
-model = "llama3.1:8b"
+mcp_api_key = "test_key_12345678901234567890123456789012"
+database_url = "sqlite:///data/sekha.db?mode=rwc"
+ollama_url = "http://host.docker.internal:11434"
+chroma_url = "http://chroma:8000"
+llm_bridge_url = "http://sekha-bridge:5001"
 embedding_model = "nomic-embed-text:latest"
-
-# API Configuration
-[api]
-api_keys = ["test_key_12345678901234567890123456789012"]
+max_connections = 10
+log_level = "info"
+summarization_enabled = true
+summarization_model = "llama3.1:8b"
+pruning_enabled = true
 rate_limit_per_minute = 1000
 cors_enabled = true
-summarization_enabled = true
-pruning_enabled = true
