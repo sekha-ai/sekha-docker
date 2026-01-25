@@ -387,10 +387,17 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
       
-      - name: Download all artifacts
+      - name: Download binary artifacts
         uses: actions/download-artifact@v6
         with:
+          pattern: sekha-controller-*
           path: ./artifacts
+          
+      - name: Download SBOM artifacts
+        uses: actions/download-artifact@v6
+        with:
+          name: sbom-files
+          path: ./artifacts/sbom-files
       
       - name: Create Release
         uses: softprops/action-gh-release@v2
