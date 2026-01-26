@@ -13,6 +13,7 @@ Complete Sekha stack in one command:
 
 - ✅ **Sekha Controller** (Rust core engine)
 - ✅ **Sekha LLM Bridge** (Python)
+- ✅ **Sekha Proxy** (Python)
 - ✅ **ChromaDB** (vector storage)
 - ✅ **Ollama** (local LLM)
 - ✅ Pre-configured networking
@@ -129,6 +130,7 @@ docker compose -f docker-compose.prod.yml up -d
 |---------|------|----------|
 | sekha-controller | 8080 | Main API server |
 | sekha-llm-bridge | 5001 | LLM operations (internal) |
+| sekha-proxy      |      | Transparent capture proxy |
 | chroma | 8000 | Vector database |
 | ollama | 11434 | Local LLM runtime |
 
@@ -160,7 +162,7 @@ docker compose -f docker-compose.prod.yml up -d
 - **Main Repo:** [sekha-controller](https://github.com/sekha-ai/sekha-controller)
 - **Docs:** [docs.sekha.dev](https://docs.sekha.dev)
 - **Website:** [sekha.dev](https://sekha.dev)
-- **Discord:** [discord.gg/sekha](https://discord.gg/sekha)
+- **Discord:** [discord.gg/sekha](https://discord.gg/gZb7U9deKH))
 
 ---
 
