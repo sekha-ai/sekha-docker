@@ -390,13 +390,13 @@ jobs:
         uses: actions/checkout@v6
       
       - name: Download binary artifacts
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           pattern: sekha-controller-*
           path: ./artifacts
           
       - name: Download SBOM artifacts
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           name: sbom-files
           path: ./artifacts/sbom-files
