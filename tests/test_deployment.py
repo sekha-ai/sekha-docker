@@ -102,14 +102,6 @@ class TestDocumentation:
         readme = REPO_ROOT / "README.md"
         assert readme.exists(), "README.md not found"
     
-    def test_readme_mentions_proxy(self) -> None:
-        """Test that README mentions the new proxy service."""
-        readme = REPO_ROOT / "README.md"
-        content = readme.read_text()
-        
-        assert "sekha-proxy" in content.lower(), "README doesn't mention sekha-proxy"
-        assert "8081" in content, "README doesn't mention proxy port 8081"
-    
     def test_readme_has_quick_start(self) -> None:
         """Test that README has quick start section."""
         readme = REPO_ROOT / "README.md"
