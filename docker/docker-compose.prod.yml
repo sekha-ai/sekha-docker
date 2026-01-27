@@ -6,7 +6,7 @@ services:
     ports:
       - "${SEKHA_PORT:-8080}:8080"
     volumes:
-      - sekha-data:/data
+      - data:/data
       - ./config.prod.toml:/app/config.toml:ro
     environment:
       - RUST_LOG=info
@@ -144,8 +144,6 @@ services:
     restart: unless-stopped
 
 volumes:
-  sekha-data:
-    driver: local
   chroma-data:
     driver: local
   redis-data:
