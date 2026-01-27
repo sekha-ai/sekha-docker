@@ -12,7 +12,7 @@ services:
       - RUST_LOG=info
       - SEKHA__SERVER_HOST=0.0.0.0
       - SEKHA__SERVER_PORT=8080
-      - SEKHA__MCP_API_KEY=${MCP_API_KEY:?MCP_API_KEY required}
+      - SEKHA__MCP_API_KEY=${MCP_API_KEY:-}
       - SEKHA__REST_API_KEY=${REST_API_KEY:-}
       - SEKHA__DATABASE_URL=${DATABASE_URL:-sqlite:///data/sekha.db}
       - SEKHA__OLLAMA_URL=${OLLAMA_URL:-http://host.docker.internal:11434}
