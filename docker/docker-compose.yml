@@ -1,5 +1,4 @@
 # Sekha Controller - Base Services
-version: '3.8'
 
 services:
   chroma:

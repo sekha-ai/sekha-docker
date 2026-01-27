@@ -1,5 +1,4 @@
 # Sekha Controller - Development Environment with Hot Reload
-version: '3.8'
 
 services:
   sekha-core-dev:

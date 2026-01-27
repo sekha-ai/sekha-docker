@@ -1,5 +1,4 @@
 # Sekha Controller - Full Stack Deployment
-version: '3.8'
 
 services:
   sekha-core:
