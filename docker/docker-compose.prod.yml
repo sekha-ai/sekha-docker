@@ -1,3 +1,9 @@
+# Production Docker Compose for Sekha Stack
+# Volumes are managed by Docker and will persist across restarts
+# Use 'docker compose down' (without -v) to preserve data
+
+name: sekha
+
 services:
   sekha-core:
     extra_hosts:
@@ -147,11 +153,5 @@ services:
 
 volumes:
   sekha-data:
-    external: true
-    name: sekha-data
   chroma-data:
-    external: true
-    name: chroma-data
   redis-data:
-    external: true
-    name: redis-data
