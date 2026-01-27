@@ -147,8 +147,11 @@ services:
 
 volumes:
   sekha-data:
-    driver: local
+    external: true
+    name: sekha-data
   chroma-data:
-    driver: local
+    external: true
+    name: chroma-data
   redis-data:
-    driver: local
+    external: true
+    name: redis-data
