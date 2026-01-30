@@ -343,6 +343,7 @@ jobs:
         run: |
           # The config.prod.toml already exists in the repo - DON'T recreate it
           # Just set the API key to match what's in the file
+          mkdir -p ./data ./chroma-data ./redis-data
           export SEKHA_API_KEY=test_key_12345678901234567890123456789012
           docker compose -f docker-compose.prod.yml up -d
           
