@@ -29,11 +29,6 @@ services:
       - SEKHA__PRUNING_ENABLED=${PRUNING_ENABLED:-true}
       - SEKHA__EMBEDDING_MODEL=${EMBEDDING_MODEL:-nomic-embed-text:latest}
       - SEKHA__SUMMARIZATION_MODEL=${SUMMARIZATION_MODEL:-llama3.1:8b}      
-    depends_on:
-      #chroma:
-      #  condition: service_healthy
-      sekha-bridge:
-        condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
       interval: 30s
