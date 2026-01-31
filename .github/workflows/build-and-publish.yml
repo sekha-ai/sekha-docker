@@ -320,22 +320,10 @@ jobs:
           docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LLM_BRIDGE }}:latest
           docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_PROXY }}:latest
       
-      - name: Start full stack
-        working-directory: sekha-docker/docker
-        run: |
-          mkdir -p ./data ./chroma-data ./redis-data
-          export SEKHA_API_KEY=test_key_12345678901234567890123456789012
-          export OLLAMA_URL=http://ollama:11434
-          docker compose -f docker-compose.prod.yml up -d
-          
-          echo "Waiting for Compose network..."
-          sleep 5
-
-      - name: Start Ollama and connect to Compose network
+      - name: Start Ollama first
         run: |
           docker run -d \
             --name ollama \
-            --network sekha-docker_default \
             ollama/ollama:latest
           
           echo "Waiting for Ollama..."
@@ -348,6 +336,32 @@ jobs:
           done
           
           docker exec ollama ollama pull nomic-embed-text:latest
+
+      - name: Start full stack and connect to Ollama network
+        working-directory: sekha-docker/docker
+        run: |
+          mkdir -p ./data ./chroma-data ./redis-data
+          export SEKHA_API_KEY=test_key_12345678901234567890123456789012
+          export OLLAMA_URL=http://ollama:11434
+          
+          # Get Ollama's network ID
+          OLLAMA_NETWORK=$(docker inspect ollama -f '{{range $k, $v := .NetworkSettings.Networks}}{{$k}}{{end}}')
+          echo "Ollama network: $OLLAMA_NETWORK"
+          
+          # Set external network for compose
+          export COMPOSE_NETWORK_EXTERNAL=true
+          export COMPOSE_NETWORK_NAME=$OLLAMA_NETWORK
+          
+          # Modify compose to use Ollama's network
+          cat >> docker-compose.prod.yml <<EOF
+
+networks:
+  default:
+    name: $OLLAMA_NETWORK
+    external: true
+EOF
+          
+          docker compose -f docker-compose.prod.yml up -d
           
           echo "Waiting 90 seconds for all services..."
           sleep 90
@@ -381,6 +395,8 @@ jobs:
         working-directory: sekha-docker/docker
         run: |
           docker compose -f docker-compose.prod.yml down -v
+          docker stop ollama || true
+          docker rm ollama || true
 
   create-release:
     name: Create GitHub Release
