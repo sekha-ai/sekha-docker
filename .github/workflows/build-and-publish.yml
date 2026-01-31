@@ -314,14 +314,19 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Create Docker network
+        run: docker network create sekha_default || true
+
       - name: Start Ollama for bridge
         run: |
           docker run -d \
             --name ollama \
-            --network host \
+            --network sekha_default \
+            --hostname ollama \
             ollama/ollama:latest
           
           echo "Waiting for Ollama..."
+          # Use the service name 'ollama' since it's now on the same network
           for i in {1..30}; do
             if curl -f http://localhost:11434/api/tags 2>/dev/null; then
               echo "✅ Ollama ready"
@@ -330,7 +335,7 @@ jobs:
             sleep 2
           done
           
-          docker exec ollama ollama pull nomic-embed-text:latest          
+          docker exec ollama ollama pull nomic-embed-text:latest
       
       - name: Pull images
         run: |
@@ -369,6 +374,19 @@ jobs:
           mkdir -p ./data ./chroma-data ./redis-data
           export SEKHA_API_KEY=test_key_12345678901234567890123456789012
           docker compose -f docker-compose.prod.yml up -d
+
+          # DEBUG: Check if bridge can reach Ollama
+          echo "=== Testing bridge network connectivity ==="
+          sleep 5
+          docker exec sekha-sekha-bridge-1 curl -v http://ollama:11434/api/tags || echo "❌ Bridge cannot reach Ollama"
+          
+          echo "Waiting 90 seconds..."
+          sleep 90
+          
+          docker compose ps
+          
+          echo "=== Bridge Logs (last 50 lines) ===" 
+          docker compose logs --tail=50 sekha-bridge
           
           echo "Waiting 90 seconds for all services..."
           sleep 90
