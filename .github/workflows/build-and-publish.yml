@@ -307,6 +307,10 @@ jobs:
           repository: sekha-ai/sekha-docker
           path: sekha-docker
       
+      - name: Create Docker network
+        run: |
+          docker network create sekha_default || true    
+
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
         with:
@@ -318,19 +322,19 @@ jobs:
         run: |
           docker run -d \
             --name ollama \
-            --network host \
+            --network sekha_default \
             ollama/ollama:latest
           
           echo "Waiting for Ollama..."
           for i in {1..30}; do
-            if curl -f http://localhost:11434/api/tags 2>/dev/null; then
+            if docker exec ollama curl -f http://localhost:11434/api/tags 2>/dev/null; then
               echo "✅ Ollama ready"
               break
             fi
             sleep 2
           done
           
-          docker exec ollama ollama pull nomic-embed-text:latest          
+          docker exec ollama ollama pull nomic-embed-text:latest
       
       - name: Pull images
         run: |
@@ -343,6 +347,7 @@ jobs:
         run: |
           mkdir -p ./data ./chroma-data ./redis-data
           export SEKHA_API_KEY=test_key_12345678901234567890123456789012
+          export OLLAMA_URL=http://ollama:11434
           docker compose -f docker-compose.prod.yml up -d
           
           echo "Waiting 90 seconds for all services..."
