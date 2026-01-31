@@ -32,6 +32,12 @@ services:
     depends_on:
       - chroma
       - sekha-bridge
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/metrics"]
+      interval: 30s
+      timeout: 5s
+      start_period: 60s
+      retries: 3
     restart: unless-stopped
     deploy:
       resources:

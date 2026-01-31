@@ -341,8 +341,6 @@ jobs:
       - name: Start full stack
         working-directory: sekha-docker/docker
         run: |
-          # The config.prod.toml already exists in the repo - DON'T recreate it
-          # Just set the API key to match what's in the file
           mkdir -p ./data ./chroma-data ./redis-data
           export SEKHA_API_KEY=test_key_12345678901234567890123456789012
           docker compose -f docker-compose.prod.yml up -d
@@ -353,13 +351,13 @@ jobs:
           docker compose -f docker-compose.prod.yml ps
           
           echo "=== Bridge Logs ===" 
-          docker logs docker-sekha-bridge-1 2>&1 || echo "Bridge not running"
+          docker compose -f docker-compose.prod.yml logs sekha-bridge || echo "Bridge not running"
           
           echo "=== Core Logs ===" 
-          docker logs docker-sekha-core-1 2>&1 || echo "Core not running"
+          docker compose -f docker-compose.prod.yml logs sekha-core || echo "Core not running"
           
           echo "=== Proxy Logs ===" 
-          docker logs docker-sekha-proxy-1 2>&1 || echo "Proxy not running"
+          docker compose -f docker-compose.prod.yml logs sekha-proxy || echo "Proxy not running"
       
       - name: Check health endpoints
         run: |
