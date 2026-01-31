@@ -313,29 +313,6 @@ jobs:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Create Docker network
-        run: docker network create sekha_default || true
-
-      - name: Start Ollama for bridge
-        run: |
-          docker run -d \
-            --name ollama \
-            --network sekha_default \
-            --hostname ollama \
-            ollama/ollama:latest
-          
-          echo "Waiting for Ollama..."
-          # Use the service name 'ollama' since it's now on the same network
-          for i in {1..30}; do
-            if curl -f http://localhost:11434/api/tags 2>/dev/null; then
-              echo "✅ Ollama ready"
-              break
-            fi
-            sleep 2
-          done
-          
-          docker exec ollama ollama pull nomic-embed-text:latest
       
       - name: Pull images
         run: |
@@ -361,6 +338,32 @@ jobs:
           EOF
           
           mkdir -p ./data ./chroma-data ./redis-data          
+
+      - name: Start infrastructure (creates network)
+        working-directory: sekha-docker/docker
+        run: |
+          # Start Redis and Chroma first - this creates sekha_default network
+          docker compose -f docker-compose.prod.yml up -d redis chroma
+          sleep 5
+
+      - name: Start Ollama for bridge
+        run: |
+          # Now attach Ollama to the compose-created network
+          docker run -d \
+            --name ollama \
+            --network sekha_default \
+            ollama/ollama:latest
+          
+          echo "Waiting for Ollama..."
+          for i in {1..30}; do
+            if curl -f http://localhost:11434/api/tags 2>/dev/null; then
+              echo "✅ Ollama ready"
+              break
+            fi
+            sleep 2
+          done
+          
+          docker exec ollama ollama pull nomic-embed-text:latest    
       
       - name: Start full stack
         working-directory: sekha-docker/docker
