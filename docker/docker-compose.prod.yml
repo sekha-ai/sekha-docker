@@ -1,6 +1,4 @@
 # Production Docker Compose for Sekha Stack
-# Volumes are managed by Docker and will persist across restarts
-# Use 'docker compose down' (without -v) to preserve data
 
 name: sekha
 
@@ -23,21 +21,25 @@ services:
       - SEKHA__DATABASE_URL=${DATABASE_URL:-sqlite:///data/sekha.db}
       - SEKHA__OLLAMA_URL=${OLLAMA_URL:-http://host.docker.internal:11434}
       - SEKHA__CHROMA_URL=${CHROMA_URL:-http://chroma:8000}
-      - SEKHA__LLM_BRIDGE_URL=${LLM_BRIDGE_URL:-http://llm-bridge:5001}
+      - SEKHA__LLM_BRIDGE_URL=${LLM_BRIDGE_URL:-http://sekha-bridge:5001}
       - SEKHA__LOG_LEVEL=${LOG_LEVEL:-info}
       - SEKHA__SUMMARIZATION_ENABLED=${SUMMARIZATION_ENABLED:-true}
       - SEKHA__PRUNING_ENABLED=${PRUNING_ENABLED:-true}
       - SEKHA__EMBEDDING_MODEL=${EMBEDDING_MODEL:-nomic-embed-text:latest}
       - SEKHA__SUMMARIZATION_MODEL=${SUMMARIZATION_MODEL:-llama3.1:8b}      
     depends_on:
-      - chroma
-      - sekha-bridge
+      chroma:
+        condition: service_started
+      redis:
+        condition: service_healthy
+      sekha-bridge:
+        condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/metrics"]
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
       interval: 30s
       timeout: 5s
       start_period: 60s
-      retries: 3
+      retries: 5
     restart: unless-stopped
     deploy:
       resources:
@@ -55,11 +57,11 @@ services:
     expose:
       - "5001"
     environment:
-      - OLLAMA_BASE_URL=http://host.docker.internal:11434
+      - OLLAMA_BASE_URL=${OLLAMA_URL:-http://host.docker.internal:11434}
       - REDIS_URL=redis://redis:6379/0
-    # depends_on:
-    #   redis:
-    #     condition: service_healthy
+    depends_on:
+      redis:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5001/health"]
     #  test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5001/health')"]

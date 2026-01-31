@@ -337,9 +337,34 @@ jobs:
           docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_CONTROLLER }}:latest
           docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LLM_BRIDGE }}:latest
           docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_PROXY }}:latest
+
+      - name: Setup config files
+        working-directory: sekha-docker/docker
+        run: |
+          # Create config.prod.toml if sekha-controller requires it
+          cat > config.prod.toml << 'EOF'
+          [server]
+          host = "0.0.0.0"
+          port = 8080
+          
+          [database]
+          url = "sqlite:///data/sekha.db"
+          
+          [llm]
+          ollama_url = "http://ollama:11434"
+          bridge_url = "http://sekha-bridge:5001"
+          EOF
+          
+          mkdir -p ./data ./chroma-data ./redis-data          
       
       - name: Start full stack
         working-directory: sekha-docker/docker
+        env:
+          OLLAMA_URL: http://ollama:11434
+          # Pass API keys explicitly 
+          MCP_API_KEY: test_key_12345678901234567890123456789012
+          REST_API_KEY: test_key_12345678901234567890123456789012
+          SEKHA_API_KEY: test_key_12345678901234567890123456789012
         run: |
           mkdir -p ./data ./chroma-data ./redis-data
           export SEKHA_API_KEY=test_key_12345678901234567890123456789012
