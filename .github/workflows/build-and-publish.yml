@@ -375,7 +375,7 @@ jobs:
           SEKHA_API_KEY: test_key_12345678901234567890123456789012
         run: |
           mkdir -p ./data ./chroma-data ./redis-data
-          chmod 777 ./data ./chroma-data ./redis-data
+          chmod 777 ./data ./chroma-data
           export SEKHA_API_KEY=test_key_12345678901234567890123456789012
           docker compose -f docker-compose.prod.yml up -d
 
