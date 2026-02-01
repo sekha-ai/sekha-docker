@@ -29,7 +29,7 @@ services:
       - SEKHA__SUMMARIZATION_MODEL=${SUMMARIZATION_MODEL:-llama3.1:8b}      
     depends_on:
       chroma:
-        condition: service_healthy
+        condition: service_started
       redis:
         condition: service_healthy
       sekha-bridge:
@@ -138,13 +138,6 @@ services:
     environment:
       - IS_PERSISTENT=TRUE
       - ANONYMIZED_TELEMETRY=FALSE
-    healthcheck:
-    #  test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/heartbeat"]
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v2/heartbeat')"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-      start_period: 15s
     restart: unless-stopped
 
   redis:
