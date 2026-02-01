@@ -29,7 +29,7 @@ services:
       - SEKHA__SUMMARIZATION_MODEL=${SUMMARIZATION_MODEL:-llama3.1:8b}      
     depends_on:
       chroma:
-        condition: service_started
+        condition: service_healthy
       redis:
         condition: service_healthy
       sekha-bridge:
@@ -38,7 +38,7 @@ services:
       test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
       interval: 30s
       timeout: 5s
-      start_period: 60s
+      start_period: 120s
       retries: 5
     restart: unless-stopped
     deploy:
@@ -131,13 +131,20 @@ services:
 
   chroma:
     image: chromadb/chroma:latest
-    expose:
-      - "8000"
+    ports:
+      - "${CHROMA_PORT:-8000}:8000"
     volumes:
       - ./chroma-data:/data
     environment:
       - IS_PERSISTENT=TRUE
       - ANONYMIZED_TELEMETRY=FALSE
+    healthcheck:
+    #  test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/heartbeat"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v2/heartbeat')"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
     restart: unless-stopped
 
   redis:
