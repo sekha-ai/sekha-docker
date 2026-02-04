@@ -1,0 +1,226 @@
+# Docker Compose for Sekha v2.0 with Multi-Provider Support
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: sekha-postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-sekha}
+      POSTGRES_USER: ${POSTGRES_USER:-sekha}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-sekha_password}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-sekha}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - sekha-network
+
+  # ChromaDB Vector Store
+  chroma:
+    image: ghcr.io/chroma-core/chroma:latest
+    container_name: sekha-chroma
+    environment:
+      ANONYMIZED_TELEMETRY: "${CHROMA_TELEMETRY:-false}"
+    ports:
+      - "${CHROMA_PORT:-8000}:8000"
+    volumes:
+      - chroma_data:/chroma/chroma
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/heartbeat"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - sekha-network
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: sekha-redis
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - sekha-network
+
+  # Ollama (Local LLM Runtime)
+  ollama:
+    image: ollama/ollama:latest
+    container_name: sekha-ollama
+    ports:
+      - "${OLLAMA_PORT:-11434}:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    environment:
+      OLLAMA_HOST: "0.0.0.0"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - sekha-network
+
+  # LLM Bridge (v2.0 with multi-provider support)
+  bridge:
+    build:
+      context: ../sekha-llm-bridge
+      dockerfile: Dockerfile
+    container_name: sekha-bridge
+    ports:
+      - "${BRIDGE_PORT:-5001}:5001"
+    environment:
+      # Service config
+      SEKHA__HOST: "0.0.0.0"
+      SEKHA__PORT: "5001"
+      SEKHA__LOG_LEVEL: "${LOG_LEVEL:-info}"
+      
+      # V2.0 Provider Configuration
+      SEKHA__LLM_PROVIDERS: |
+        [
+          {
+            "id": "ollama_local",
+            "type": "ollama",
+            "base_url": "http://ollama:11434",
+            "priority": 1,
+            "models": [
+              {
+                "model_id": "nomic-embed-text",
+                "task": "embedding",
+                "context_window": 512,
+                "dimension": 768
+              },
+              {
+                "model_id": "llama3.1:8b",
+                "task": "chat_small",
+                "context_window": 8192
+              },
+              {
+                "model_id": "llama3.1:8b",
+                "task": "chat_smart",
+                "context_window": 8192
+              }
+            ]
+          }
+        ]
+      
+      # Default models
+      SEKHA__DEFAULT_MODELS: |
+        {
+          "embedding": "nomic-embed-text",
+          "chat_fast": "llama3.1:8b",
+          "chat_smart": "llama3.1:8b"
+        }
+      
+      # Circuit breaker config
+      SEKHA__CIRCUIT_BREAKER__FAILURE_THRESHOLD: "${CB_FAILURE_THRESHOLD:-5}"
+      SEKHA__CIRCUIT_BREAKER__RESET_TIMEOUT: "${CB_RESET_TIMEOUT:-60}"
+      SEKHA__CIRCUIT_BREAKER__HALF_OPEN_TIMEOUT: "${CB_HALF_OPEN_TIMEOUT:-30}"
+      
+      # Routing config
+      SEKHA__ROUTING__AUTO_FALLBACK: "${ROUTING_AUTO_FALLBACK:-true}"
+      SEKHA__ROUTING__MAX_COST_PER_REQUEST: "${ROUTING_MAX_COST:-0.10}"
+      
+      # Cloud provider API keys (optional)
+      OPENAI_API_KEY: "${OPENAI_API_KEY:-}"
+      ANTHROPIC_API_KEY: "${ANTHROPIC_API_KEY:-}"
+      OPENROUTER_API_KEY: "${OPENROUTER_API_KEY:-}"
+    depends_on:
+      ollama:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - sekha-network
+
+  # Controller (Rust API)
+  controller:
+    build:
+      context: ../sekha-controller
+      dockerfile: Dockerfile
+    container_name: sekha-controller
+    ports:
+      - "${CONTROLLER_PORT:-8080}:8080"
+    environment:
+      # Database
+      DATABASE_URL: "postgresql://${POSTGRES_USER:-sekha}:${POSTGRES_PASSWORD:-sekha_password}@postgres:5432/${POSTGRES_DB:-sekha}"
+      
+      # Services
+      BRIDGE_URL: "http://bridge:5001"
+      CHROMA_URL: "http://chroma:8000"
+      REDIS_URL: "redis://redis:6379"
+      
+      # API Keys
+      SEKHA_API_KEYS: "${SEKHA_API_KEYS:-dev_key_123,prod_key_456}"
+      
+      # Logging
+      RUST_LOG: "${RUST_LOG:-info,sekha_controller=debug}"
+      
+      # V2.0 Config (passed through to bridge client)
+      LLM_PROVIDERS: "${SEKHA__LLM_PROVIDERS:-}"
+      DEFAULT_MODELS: "${SEKHA__DEFAULT_MODELS:-}"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      chroma:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      bridge:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - sekha-network
+
+  # Admin UI (Optional)
+  admin:
+    build:
+      context: ../sekha-admin
+      dockerfile: Dockerfile
+    container_name: sekha-admin
+    ports:
+      - "${ADMIN_PORT:-3000}:3000"
+    environment:
+      NEXT_PUBLIC_API_URL: "http://controller:8080"
+      NEXT_PUBLIC_API_KEY: "${ADMIN_API_KEY:-dev_key_123}"
+    depends_on:
+      - controller
+    networks:
+      - sekha-network
+
+networks:
+  sekha-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  chroma_data:
+  redis_data:
+  ollama_data:
