@@ -1,0 +1,205 @@
+# Sekha v2.0 Configuration Example
+# Copy this file to config.yaml and customize for your deployment
+
+# EXAMPLE 1: Minimal Configuration (Ollama Only)
+# This is the simplest setup - uses only local Ollama
+
+config_version: "2.0"
+
+llm_providers:
+  - id: "ollama_local"
+    type: "ollama"
+    base_url: "http://localhost:11434"
+    api_key: null
+    priority: 1
+    models:
+      - model_id: "nomic-embed-text"
+        task: "embedding"
+        context_window: 512
+        dimension: 768
+      - model_id: "llama3.1:8b"
+        task: "chat_small"
+        context_window: 8192
+      - model_id: "llama3.1:8b"
+        task: "chat_smart"
+        context_window: 8192
+
+default_models:
+  embedding: "nomic-embed-text"
+  chat_fast: "llama3.1:8b"
+  chat_smart: "llama3.1:8b"
+
+routing:
+  auto_fallback: true
+  require_vision_for_images: true
+  max_cost_per_request: null
+  circuit_breaker:
+    failure_threshold: 3
+    timeout_secs: 60
+    success_threshold: 2
+
+---
+
+# EXAMPLE 2: Hybrid Configuration (Ollama + OpenAI)
+# Local models for cheap operations, OpenAI for complex tasks
+
+config_version: "2.0"
+
+llm_providers:
+  # Local Ollama - tried first (priority 1)
+  - id: "ollama_local"
+    type: "ollama"
+    base_url: "http://localhost:11434"
+    api_key: null
+    priority: 1
+    models:
+      - model_id: "nomic-embed-text"
+        task: "embedding"
+        context_window: 512
+        dimension: 768
+      - model_id: "llama3.1:8b"
+        task: "chat_small"
+        context_window: 8192
+  
+  # OpenAI - fallback for smart tasks (priority 2)
+  - id: "openai_cloud"
+    type: "openai"
+    base_url: "https://api.openai.com/v1"
+    api_key: "${OPENAI_API_KEY}"  # Load from environment
+    priority: 2
+    models:
+      - model_id: "gpt-4o"
+        task: "chat_smart"
+        context_window: 128000
+        supports_vision: true
+      - model_id: "gpt-4o-mini"
+        task: "chat_small"
+        context_window: 128000
+      - model_id: "text-embedding-3-large"
+        task: "embedding"
+        context_window: 8191
+        dimension: 3072
+
+default_models:
+  embedding: "nomic-embed-text"  # Local is free
+  chat_fast: "llama3.1:8b"       # Local for cheap tasks
+  chat_smart: "gpt-4o"            # OpenAI for complex reasoning
+  chat_vision: "gpt-4o"           # OpenAI for vision
+
+routing:
+  auto_fallback: true
+  require_vision_for_images: true
+  max_cost_per_request: 0.50  # Max $0.50 per request
+  circuit_breaker:
+    failure_threshold: 3
+    timeout_secs: 60
+    success_threshold: 2
+
+---
+
+# EXAMPLE 3: Full Multi-Provider Configuration
+# Maximum flexibility with multiple providers and fallbacks
+
+config_version: "2.0"
+
+llm_providers:
+  # Priority 1: Local Ollama (free, fast for simple tasks)
+  - id: "ollama_local"
+    type: "ollama"
+    base_url: "http://localhost:11434"
+    api_key: null
+    priority: 1
+    models:
+      - model_id: "nomic-embed-text"
+        task: "embedding"
+        context_window: 512
+        dimension: 768
+      - model_id: "llama3.1:8b"
+        task: "chat_small"
+        context_window: 8192
+      - model_id: "llava:34b"
+        task: "vision"
+        context_window: 4096
+        supports_vision: true
+  
+  # Priority 2: OpenRouter (access to many models)
+  - id: "openrouter"
+    type: "openrouter"
+    base_url: "https://openrouter.ai/api/v1"
+    api_key: "${OPENROUTER_API_KEY}"
+    priority: 2
+    models:
+      - model_id: "anthropic/claude-3-opus"
+        task: "chat_smart"
+        context_window: 200000
+      - model_id: "deepseek/deepseek-v3"
+        task: "chat_smart"
+        context_window: 64000
+      - model_id: "moonshot/kimi-2.5"
+        task: "chat_smart"
+        context_window: 256000
+        supports_vision: true
+  
+  # Priority 3: Direct OpenAI (most expensive, highest quality)
+  - id: "openai_direct"
+    type: "openai"
+    base_url: "https://api.openai.com/v1"
+    api_key: "${OPENAI_API_KEY}"
+    priority: 3
+    models:
+      - model_id: "gpt-4o"
+        task: "chat_smart"
+        context_window: 128000
+        supports_vision: true
+      - model_id: "text-embedding-3-large"
+        task: "embedding"
+        context_window: 8191
+        dimension: 3072
+  
+  # Priority 4: Anthropic Direct (Claude models)
+  - id: "anthropic_direct"
+    type: "anthropic"
+    base_url: "https://api.anthropic.com/v1"
+    api_key: "${ANTHROPIC_API_KEY}"
+    priority: 4
+    models:
+      - model_id: "claude-3-opus-20240229"
+        task: "chat_smart"
+        context_window: 200000
+      - model_id: "claude-3-sonnet-20240229"
+        task: "chat_small"
+        context_window: 200000
+
+default_models:
+  embedding: "nomic-embed-text"           # Local, free
+  chat_fast: "llama3.1:8b"                # Local, free
+  chat_smart: "moonshot/kimi-2.5"         # OpenRouter, long context
+  chat_vision: "gpt-4o"                   # OpenAI, best vision
+
+routing:
+  auto_fallback: true
+  require_vision_for_images: true
+  max_cost_per_request: 1.00  # Max $1 per request
+  circuit_breaker:
+    failure_threshold: 5      # More tolerant with many providers
+    timeout_secs: 120         # Longer timeout
+    success_threshold: 3      # Require more successes to recover
+
+---
+
+# Environment Variable Override Example
+# Instead of config.yaml, you can use environment variables for Docker:
+
+# export SEKHA__CONFIG_VERSION="2.0"
+# export SEKHA__LLM_PROVIDERS='[
+#   {
+#     "id": "ollama_local",
+#     "type": "ollama",
+#     "base_url": "http://ollama:11434",
+#     "priority": 1,
+#     "models": [
+#       {"model_id": "nomic-embed-text", "task": "embedding", "context_window": 512, "dimension": 768}
+#     ]
+#   }
+# ]'
+# export SEKHA__DEFAULT_MODELS='{"embedding": "nomic-embed-text", "chat_fast": "llama3.1:8b", "chat_smart": "llama3.1:8b"}'

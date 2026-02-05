@@ -1,0 +1,209 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Sekha Configuration Schema v2.0",
+  "description": "Configuration schema for Sekha's multi-provider LLM architecture",
+  "type": "object",
+  "required": ["config_version", "llm_providers", "default_models"],
+  "properties": {
+    "config_version": {
+      "type": "string",
+      "const": "2.0",
+      "description": "Configuration format version"
+    },
+    "llm_providers": {
+      "type": "array",
+      "description": "List of LLM providers available to Sekha",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "type", "base_url", "priority"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique identifier for this provider (e.g., 'ollama_local', 'openai_cloud')",
+            "pattern": "^[a-zA-Z0-9_-]+$"
+          },
+          "type": {
+            "type": "string",
+            "enum": ["ollama", "litellm", "openrouter", "openai", "anthropic"],
+            "description": "Provider type determines how to connect to the service"
+          },
+          "base_url": {
+            "type": "string",
+            "format": "uri",
+            "description": "Base URL for the provider API (e.g., 'http://localhost:11434')"
+          },
+          "api_key": {
+            "type": ["string", "null"],
+            "description": "API key for authentication (null for local services like Ollama)"
+          },
+          "timeout_secs": {
+            "type": "integer",
+            "minimum": 10,
+            "maximum": 600,
+            "default": 120,
+            "description": "Request timeout in seconds"
+          },
+          "priority": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100,
+            "description": "Provider priority (1 = highest, try first)"
+          },
+          "models": {
+            "type": "array",
+            "description": "Models available from this provider",
+            "items": {
+              "type": "object",
+              "required": ["model_id", "task", "context_window"],
+              "properties": {
+                "model_id": {
+                  "type": "string",
+                  "description": "Model identifier (e.g., 'llama3.1:8b', 'gpt-4o', 'claude-3-opus')"
+                },
+                "task": {
+                  "type": "string",
+                  "enum": ["embedding", "chat_small", "chat_large", "chat_smart", "vision", "audio"],
+                  "description": "Primary task this model is optimized for"
+                },
+                "context_window": {
+                  "type": "integer",
+                  "minimum": 512,
+                  "maximum": 1000000,
+                  "description": "Maximum context window in tokens"
+                },
+                "supports_vision": {
+                  "type": "boolean",
+                  "default": false,
+                  "description": "Whether model can process images"
+                },
+                "supports_audio": {
+                  "type": "boolean",
+                  "default": false,
+                  "description": "Whether model can process audio"
+                },
+                "dimension": {
+                  "type": ["integer", "null"],
+                  "minimum": 64,
+                  "maximum": 10000,
+                  "description": "Embedding dimension (for embedding models only)"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "default_models": {
+      "type": "object",
+      "description": "Default model selections for common tasks",
+      "required": ["embedding", "chat_fast", "chat_smart"],
+      "properties": {
+        "embedding": {
+          "type": "string",
+          "description": "Default model for text embeddings",
+          "examples": ["nomic-embed-text", "text-embedding-3-large"]
+        },
+        "chat_fast": {
+          "type": "string",
+          "description": "Fast, cheap model for simple tasks",
+          "examples": ["llama3.1:8b", "gpt-4o-mini"]
+        },
+        "chat_smart": {
+          "type": "string",
+          "description": "Advanced model for complex reasoning",
+          "examples": ["kimi-2.5", "claude-3-opus", "gpt-4o"]
+        },
+        "chat_vision": {
+          "type": ["string", "null"],
+          "description": "Model for vision tasks (optional)",
+          "examples": ["gpt-4o", "kimi-2.5", "llava:34b"]
+        }
+      }
+    },
+    "routing": {
+      "type": "object",
+      "description": "Routing and fallback configuration",
+      "properties": {
+        "auto_fallback": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically fallback to next provider on failure"
+        },
+        "require_vision_for_images": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically route to vision models when images are present"
+        },
+        "max_cost_per_request": {
+          "type": ["number", "null"],
+          "minimum": 0,
+          "description": "Maximum cost in USD per request (null = no limit)"
+        },
+        "circuit_breaker": {
+          "type": "object",
+          "description": "Circuit breaker configuration for provider failures",
+          "properties": {
+            "failure_threshold": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 10,
+              "default": 3,
+              "description": "Number of failures before opening circuit"
+            },
+            "timeout_secs": {
+              "type": "integer",
+              "minimum": 10,
+              "maximum": 600,
+              "default": 60,
+              "description": "Seconds to wait before attempting recovery"
+            },
+            "success_threshold": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 10,
+              "default": 2,
+              "description": "Successes needed in half-open state to close circuit"
+            }
+          }
+        }
+      }
+    }
+  },
+  "examples": [
+    {
+      "config_version": "2.0",
+      "llm_providers": [
+        {
+          "id": "ollama_local",
+          "type": "ollama",
+          "base_url": "http://localhost:11434",
+          "api_key": null,
+          "priority": 1,
+          "models": [
+            {
+              "model_id": "nomic-embed-text",
+              "task": "embedding",
+              "context_window": 512,
+              "dimension": 768
+            },
+            {
+              "model_id": "llama3.1:8b",
+              "task": "chat_small",
+              "context_window": 8192
+            }
+          ]
+        }
+      ],
+      "default_models": {
+        "embedding": "nomic-embed-text",
+        "chat_fast": "llama3.1:8b",
+        "chat_smart": "llama3.1:8b"
+      },
+      "routing": {
+        "auto_fallback": true,
+        "max_cost_per_request": null
+      }
+    }
+  ]
+}
