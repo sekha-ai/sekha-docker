@@ -1,320 +1,248 @@
 #!/bin/bash
-# migrate-config-v2.sh - Migrate Sekha v1.x configuration to v2.0
-#
-# This script helps migrate from v1.x environment variable configuration
-# to the new v2.0 YAML-based multi-provider configuration.
-#
-# Usage:
-#   ./scripts/migrate-config-v2.sh [--dry-run] [--output config.yaml]
+# ============================================
+# Sekha v1.x to v2.0 Configuration Migration
+# ============================================
+# This script migrates old environment-based configuration
+# to the new v2.0 YAML format with provider registry.
 
-set -e
+set -e  # Exit on error
 
-# Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0;m' # No Color
+NC='\033[0m' # No Color
 
-# Configuration
-OUTPUT_FILE="config.yaml"
-DRY_RUN=false
-BACKUP_DIR=".config-backups"
-
-# Parse arguments
-while [[ $# -gt 0 ]]; do
-    case $1 in
-        --dry-run)
-            DRY_RUN=true
-            shift
-            ;;
-        --output)
-            OUTPUT_FILE="$2"
-            shift 2
-            ;;
-        --help|-h)
-            echo "Usage: $0 [OPTIONS]"
-            echo ""
-            echo "Options:"
-            echo "  --dry-run         Show what would be generated without writing"
-            echo "  --output FILE     Output file path (default: config.yaml)"
-            echo "  --help, -h        Show this help message"
-            echo ""
-            echo "Examples:"
-            echo "  $0 --dry-run                    # Preview migration"
-            echo "  $0 --output my-config.yaml      # Write to custom file"
-            exit 0
-            ;;
-        *)
-            echo -e "${RED}Unknown option: $1${NC}"
-            exit 1
-            ;;
-    esac
-done
-
-echo -e "${BLUE}╔════════════════════════════════════════════════════════╗${NC}"
-echo -e "${BLUE}║  Sekha Configuration Migration: v1.x → v2.0            ║${NC}"
-echo -e "${BLUE}╚════════════════════════════════════════════════════════╝${NC}"
+echo "================================================"
+echo "  Sekha v1.x → v2.0 Configuration Migration"
+echo "================================================"
 echo ""
 
-# Detect current configuration
-echo -e "${YELLOW}[1/5] Detecting current configuration...${NC}"
+# Backup existing config
+BACKUP_DIR=".sekha-backups"
+mkdir -p "$BACKUP_DIR"
+BACKUP_FILE="$BACKUP_DIR/config-v1-$(date +%Y%m%d-%H%M%S).backup"
+
+if [ -f "config.yaml" ]; then
+    echo -e "${YELLOW}⚠️  Backing up existing config.yaml...${NC}"
+    cp config.yaml "$BACKUP_FILE"
+    echo -e "${GREEN}✓ Backup saved to: $BACKUP_FILE${NC}"
+    echo ""
+fi
 
 if [ -f ".env" ]; then
-    echo -e "${GREEN}✓${NC} Found .env file"
-    source .env 2>/dev/null || true
+    ENV_BACKUP="$BACKUP_DIR/.env-$(date +%Y%m%d-%H%M%S).backup"
+    cp .env "$ENV_BACKUP"
+    echo -e "${GREEN}✓ .env backed up to: $ENV_BACKUP${NC}"
+    echo ""
 fi
 
-# Check for v1.x style env vars
-has_v1_config=false
-if [ ! -z "$OLLAMA_URL" ] || [ ! -z "$LLM_URL" ]; then
-    has_v1_config=true
-    echo -e "${GREEN}✓${NC} Detected v1.x configuration"
+# Load environment variables if .env exists
+if [ -f ".env" ]; then
+    echo "Loading environment variables from .env..."
+    set -a
+    source .env
+    set +a
 fi
 
-if [ -f "$OUTPUT_FILE" ]; then
-    echo -e "${YELLOW}⚠${NC}  Warning: $OUTPUT_FILE already exists"
-    if [ "$DRY_RUN" = false ]; then
-        read -p "Overwrite? [y/N] " -n 1 -r
-        echo
-        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-            echo -e "${RED}✗${NC} Migration cancelled"
-            exit 1
-        fi
-    fi
-fi
-
-# Extract configuration values
-echo -e "${YELLOW}[2/5] Extracting configuration values...${NC}"
-
-# LLM configuration
-OLLAMA_BASE_URL="${OLLAMA_URL:-${LLM_URL:-http://localhost:11434}}"
+# Default values from v1.x
+OLLAMA_URL="${OLLAMA_URL:-http://localhost:11434}"
 EMBEDDING_MODEL="${EMBEDDING_MODEL:-nomic-embed-text}"
-CHAT_MODEL="${CHAT_MODEL:-${SUMMARIZATION_MODEL:-llama3.1:8b}}"
-OPENAI_API_KEY="${OPENAI_API_KEY:-}"
-ANTHROPIC_API_KEY="${ANTHROPIC_API_KEY:-}"
-OPENROUTER_API_KEY="${OPENROUTER_API_KEY:-}"
+SUMMARIZATION_MODEL="${SUMMARIZATION_MODEL:-llama3.1:8b}"
+SERVER_PORT="${SERVER_PORT:-8080}"
+CHROMA_URL="${CHROMA_URL:-http://localhost:8000}"
+LLM_BRIDGE_URL="${LLM_BRIDGE_URL:-http://localhost:5001}"
+DATABASE_URL="${DATABASE_URL:-sqlite://sekha.db}"
+MCP_API_KEY="${MCP_API_KEY:-}"
 
-echo -e "  Ollama URL: ${OLLAMA_BASE_URL}"
-echo -e "  Embedding Model: ${EMBEDDING_MODEL}"
-echo -e "  Chat Model: ${CHAT_MODEL}"
-[ ! -z "$OPENAI_API_KEY" ] && echo -e "${GREEN}  ✓${NC} OpenAI API key found"
-[ ! -z "$ANTHROPIC_API_KEY" ] && echo -e "${GREEN}  ✓${NC} Anthropic API key found"
-[ ! -z "$OPENROUTER_API_KEY" ] && echo -e "${GREEN}  ✓${NC} OpenRouter API key found"
+# Display detected configuration
+echo "Detected v1.x configuration:"
+echo "  Ollama URL:         $OLLAMA_URL"
+echo "  Embedding Model:    $EMBEDDING_MODEL"
+echo "  Summarization:      $SUMMARIZATION_MODEL"
+echo "  Server Port:        $SERVER_PORT"
+echo ""
 
-# Generate configuration
-echo -e "${YELLOW}[3/5] Generating v2.0 configuration...${NC}"
+# Prompt for confirmation
+read -p "Proceed with migration? (y/N): " -n 1 -r
+echo
+if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+    echo -e "${RED}Migration cancelled.${NC}"
+    exit 1
+fi
 
-# Determine embedding dimension
-EMBEDDING_DIM=768
-case "$EMBEDDING_MODEL" in
-    nomic-embed-text) EMBEDDING_DIM=768 ;;
-    mxbai-embed-large) EMBEDDING_DIM=1024 ;;
-    text-embedding-3-small) EMBEDDING_DIM=1536 ;;
-    text-embedding-3-large) EMBEDDING_DIM=3072 ;;
-    text-embedding-ada-002) EMBEDDING_DIM=1536 ;;
-esac
+# Detect embedding dimension
+EMBED_DIMENSION=768
+if [[ "$EMBEDDING_MODEL" == *"3-large"* ]]; then
+    EMBED_DIMENSION=3072
+elif [[ "$EMBEDDING_MODEL" == *"3-small"* ]]; then
+    EMBED_DIMENSION=1536
+fi
 
-# Build YAML config
-CONFIG=$(cat <<EOF
+# Generate v2.0 config
+echo ""
+echo "Generating v2.0 configuration..."
+
+cat > config.yaml << EOF
+# ============================================
 # Sekha v2.0 Configuration
-# Generated by migration script from v1.x settings
-# Date: $(date +"%Y-%m-%d %H:%M:%S")
+# Auto-migrated from v1.x on $(date)
+# ============================================
+# Original v1.x config backed up to: $BACKUP_FILE
 
-config_version: "2.0"
+version: "2.0"
 
+# ============================================
+# LLM Provider Registry
+# ============================================
 llm_providers:
-  # Local Ollama - Priority 1 (free, fast)
-  - id: "ollama_local"
+  - id: "ollama_migrated"
     type: "ollama"
-    base_url: "${OLLAMA_BASE_URL}"
-    api_key: null
+    base_url: "$OLLAMA_URL"
     priority: 1
+    timeout: 120
     models:
-      - model_id: "${EMBEDDING_MODEL}"
+      - model_id: "$EMBEDDING_MODEL"
         task: "embedding"
-        context_window: 512
-        dimension: ${EMBEDDING_DIM}
-      - model_id: "${CHAT_MODEL}"
+        context_window: 8192
+        dimension: $EMBED_DIMENSION
+      - model_id: "$SUMMARIZATION_MODEL"
         task: "chat_small"
         context_window: 8192
-      - model_id: "${CHAT_MODEL}"
+      - model_id: "$SUMMARIZATION_MODEL"
         task: "chat_smart"
         context_window: 8192
-EOF
-)
 
-# Add OpenAI provider if API key exists
-if [ ! -z "$OPENAI_API_KEY" ]; then
-    CONFIG+=$(cat <<EOF
-
-  # OpenAI - Priority 2 (high quality, paid)
-  - id: "openai_cloud"
-    type: "openai"
-    base_url: "https://api.openai.com/v1"
-    api_key: "\${OPENAI_API_KEY}"
-    priority: 2
-    models:
-      - model_id: "gpt-4o"
-        task: "chat_smart"
-        context_window: 128000
-        supports_vision: true
-      - model_id: "gpt-4o-mini"
-        task: "chat_small"
-        context_window: 128000
-      - model_id: "text-embedding-3-large"
-        task: "embedding"
-        context_window: 8191
-        dimension: 3072
-EOF
-    )
-fi
-
-# Add Anthropic provider if API key exists
-if [ ! -z "$ANTHROPIC_API_KEY" ]; then
-    CONFIG+=$(cat <<EOF
-
-  # Anthropic - Priority 3 (Claude models)
-  - id: "anthropic_direct"
-    type: "anthropic"
-    base_url: "https://api.anthropic.com/v1"
-    api_key: "\${ANTHROPIC_API_KEY}"
-    priority: 3
-    models:
-      - model_id: "claude-3-opus-20240229"
-        task: "chat_smart"
-        context_window: 200000
-      - model_id: "claude-3-sonnet-20240229"
-        task: "chat_small"
-        context_window: 200000
-EOF
-    )
-fi
-
-# Add OpenRouter provider if API key exists
-if [ ! -z "$OPENROUTER_API_KEY" ]; then
-    CONFIG+=$(cat <<EOF
-
-  # OpenRouter - Priority 4 (access to many models)
-  - id: "openrouter"
-    type: "openrouter"
-    base_url: "https://openrouter.ai/api/v1"
-    api_key: "\${OPENROUTER_API_KEY}"
-    priority: 4
-    models:
-      - model_id: "deepseek/deepseek-v3"
-        task: "chat_smart"
-        context_window: 64000
-      - model_id: "moonshot/kimi-2.5"
-        task: "chat_smart"
-        context_window: 256000
-EOF
-    )
-fi
-
-# Add default models and routing config
-CONFIG+=$(cat <<EOF
-
+# ============================================
+# Default Model Selections
+# ============================================
 default_models:
-  embedding: "${EMBEDDING_MODEL}"
-  chat_fast: "${CHAT_MODEL}"
-  chat_smart: "${CHAT_MODEL}"
-EOF
-)
+  embedding: "$EMBEDDING_MODEL"
+  chat_fast: "$SUMMARIZATION_MODEL"
+  chat_smart: "$SUMMARIZATION_MODEL"
+  chat_vision: null
 
-if [ ! -z "$OPENAI_API_KEY" ]; then
-    CONFIG+=$(echo -e "\n  chat_vision: \"gpt-4o\"")
-fi
-
-CONFIG+=$(cat <<EOF
-
+# ============================================
+# Routing Configuration
+# ============================================
 routing:
   auto_fallback: true
   require_vision_for_images: true
-  max_cost_per_request: null  # No cost limit (set to float for budget)
   circuit_breaker:
     failure_threshold: 3
     timeout_secs: 60
     success_threshold: 2
+
+# ============================================
+# Server Configuration
+# ============================================
+server_host: "0.0.0.0"
+server_port: $SERVER_PORT
+max_connections: 10
+log_level: "info"
+
+# ============================================
+# Database Configuration
+# ============================================
+database_url: "$DATABASE_URL"
+chroma_url: "$CHROMA_URL"
+llm_bridge_url: "$LLM_BRIDGE_URL"
+
+# ============================================
+# API Security
+# ============================================
+mcp_api_key: "\${SEKHA_API_KEY}"
+rest_api_key: "\${SEKHA_API_KEY}"
+rate_limit_per_minute: 1000
+cors_enabled: true
+
+# ============================================
+# Features
+# ============================================
+summarization_enabled: true
+pruning_enabled: true
+
 EOF
-)
 
-echo -e "${GREEN}✓${NC} Configuration generated"
-
-# Validate configuration (basic check)
-echo -e "${YELLOW}[4/5] Validating configuration...${NC}"
-
-if echo "$CONFIG" | grep -q "config_version: \"2.0\""; then
-    echo -e "${GREEN}✓${NC} Version field present"
-else
-    echo -e "${RED}✗${NC} Missing version field"
-    exit 1
-fi
-
-if echo "$CONFIG" | grep -q "llm_providers:"; then
-    echo -e "${GREEN}✓${NC} Providers section present"
-else
-    echo -e "${RED}✗${NC} Missing providers section"
-    exit 1
-fi
-
-if echo "$CONFIG" | grep -q "default_models:"; then
-    echo -e "${GREEN}✓${NC} Default models section present"
-else
-    echo -e "${RED}✗${NC} Missing default models section"
-    exit 1
-fi
-
-echo -e "${GREEN}✓${NC} Configuration valid"
-
-# Write configuration
-echo -e "${YELLOW}[5/5] Writing configuration...${NC}"
-
-if [ "$DRY_RUN" = true ]; then
-    echo -e "${BLUE}[DRY RUN] Would write to: $OUTPUT_FILE${NC}"
-    echo ""
-    echo -e "${BLUE}────── Configuration Preview ──────${NC}"
-    echo "$CONFIG"
-    echo -e "${BLUE}───────────────────────────────────${NC}"
-else
-    # Create backup
-    if [ -f "$OUTPUT_FILE" ]; then
-        mkdir -p "$BACKUP_DIR"
-        backup_file="$BACKUP_DIR/$(basename $OUTPUT_FILE).$(date +%Y%m%d_%H%M%S).bak"
-        cp "$OUTPUT_FILE" "$backup_file"
-        echo -e "${GREEN}✓${NC} Backed up existing config to: $backup_file"
-    fi
-    
-    if [ -f ".env" ] && [ ! -f "$BACKUP_DIR/.env.bak" ]; then
-        mkdir -p "$BACKUP_DIR"
-        cp ".env" "$BACKUP_DIR/.env.$(date +%Y%m%d_%H%M%S).bak"
-        echo -e "${GREEN}✓${NC} Backed up .env file"
-    fi
-    
-    # Write config
-    echo "$CONFIG" > "$OUTPUT_FILE"
-    echo -e "${GREEN}✓${NC} Wrote configuration to: $OUTPUT_FILE"
-fi
-
-# Summary
+echo -e "${GREEN}✓ Generated config.yaml${NC}"
 echo ""
-echo -e "${GREEN}╔════════════════════════════════════════════════════════╗${NC}"
-echo -e "${GREEN}║  Migration Complete!                                   ║${NC}"
-echo -e "${GREEN}╚════════════════════════════════════════════════════════╝${NC}"
+
+# Generate updated .env template
+cat > .env.v2.example << 'EOF'
+# ============================================
+# Sekha v2.0 Environment Variables
+# ============================================
+# Copy to .env and customize
+
+# Required: API Key for authentication
+SEKHA_API_KEY="your-secure-api-key-minimum-32-characters-long"
+
+# Optional: Cloud provider API keys (if using multi-provider setup)
+# OPENAI_API_KEY="sk-..."
+# ANTHROPIC_API_KEY="sk-ant-..."
+# OPENROUTER_API_KEY="sk-or-..."
+
+# Optional: Override any config.yaml setting
+# SEKHA__SERVER_PORT=8081
+# SEKHA__LOG_LEVEL=debug
+EOF
+
+echo -e "${GREEN}✓ Generated .env.v2.example${NC}"
 echo ""
-echo -e "${YELLOW}Next steps:${NC}"
-echo -e "  1. Review the generated $OUTPUT_FILE"
-echo -e "  2. Update your .env file:"
-echo -e "     ${BLUE}export LLM_BRIDGE_URL='http://localhost:5001'${NC}"
-echo -e "  3. Remove deprecated variables:"
-echo -e "     ${BLUE}unset OLLAMA_URL LLM_URL LLM_PROVIDER${NC}"
-echo -e "  4. Restart services:"
-echo -e "     ${BLUE}docker-compose down && docker-compose up -d${NC}"
-echo -e "  5. Verify routing:"
-echo -e "     ${BLUE}curl http://localhost:5001/api/v1/models${NC}"
+
+# Create migration summary
+MIGRATION_SUMMARY="$BACKUP_DIR/migration-summary-$(date +%Y%m%d-%H%M%S).txt"
+cat > "$MIGRATION_SUMMARY" << EOF
+Sekha v1.x → v2.0 Migration Summary
+====================================
+Date: $(date)
+
+Migrated Configuration:
+-----------------------
+Provider:          Ollama (ollama_migrated)
+Base URL:          $OLLAMA_URL
+Embedding Model:   $EMBEDDING_MODEL (dimension: $EMBED_DIMENSION)
+Chat Model:        $SUMMARIZATION_MODEL
+
+New Files:
+----------
+✓ config.yaml         - v2.0 configuration with provider registry
+✓ .env.v2.example     - Example environment variables
+
+Backups:
+--------
+✓ $BACKUP_FILE
+$([ -f "$ENV_BACKUP" ] && echo "✓ $ENV_BACKUP" || echo "")
+
+Next Steps:
+-----------
+1. Review config.yaml and adjust as needed
+2. Update .env with required API keys (SEKHA_API_KEY)
+3. Add additional providers if desired (see config.yaml.example)
+4. Restart Sekha services
+
+Rollback:
+---------
+To rollback to v1.x configuration:
+  cp $BACKUP_FILE config.yaml
+  $([ -f "$ENV_BACKUP" ] && echo "cp $ENV_BACKUP .env" || echo "")
+
+Documentation:
+--------------
+See config.yaml.example for multi-provider setup examples
+See sekha-config-schema.json for full configuration reference
+EOF
+
+echo "================================================"
+echo -e "${GREEN}✓ Migration Complete!${NC}"
+echo "================================================"
 echo ""
-echo -e "${YELLOW}Documentation:${NC}"
-echo -e "  • docs/migration-guide-v2.md - Complete migration guide"
-echo -e "  • docs/configuration-v2.md   - Configuration reference"
-echo -e "  • config.yaml.example        - Example configurations"
+echo "Summary saved to: $MIGRATION_SUMMARY"
 echo ""
+echo "Next steps:"
+echo "  1. Review config.yaml"
+echo "  2. Set SEKHA_API_KEY in .env (minimum 32 characters)"
+echo "  3. Restart Sekha services: docker-compose up -d"
+echo ""
+echo "To rollback: cp $BACKUP_FILE config.yaml"
+echo ""
+cat "$MIGRATION_SUMMARY"
