@@ -93,10 +93,18 @@ llm_providers:
         task: "chat_smart"
         context_window: 128000
         supports_vision: true
+        vision_capabilities:
+          max_images: 10
+          max_image_size_mb: 20
+          supported_formats: ["jpg", "jpeg", "png", "gif", "webp"]
       - model_id: "gpt-4o"
         task: "vision"
         context_window: 128000
         supports_vision: true
+        vision_capabilities:
+          max_images: 10
+          max_image_size_mb: 20
+          supported_formats: ["jpg", "jpeg", "png", "gif", "webp"]
 
 default_models:
   embedding: "nomic-embed-text"  # Use free Ollama embedding
@@ -160,12 +168,20 @@ routing:
 #         task: "chat_smart"
 #         context_window: 128000
 #         supports_vision: true
+#         vision_capabilities:
+#           max_images: 10
+#           max_image_size_mb: 20
+#           supported_formats: ["jpg", "jpeg", "png", "gif", "webp"]
 #       - model_id: "gpt-4o"
 #         task: "vision"
 #         context_window: 128000
 #         supports_vision: true
+#         vision_capabilities:
+#           max_images: 10
+#           max_image_size_mb: 20
+#           supported_formats: ["jpg", "jpeg", "png", "gif", "webp"]
 # 
-#   # Tier 3: Anthropic (best reasoning)
+#   # Tier 3: Anthropic (best reasoning, good vision)
 #   - id: "anthropic_cloud"
 #     type: "anthropic"
 #     base_url: "https://api.anthropic.com"
@@ -180,10 +196,18 @@ routing:
 #         task: "chat_smart"
 #         context_window: 200000
 #         supports_vision: true
+#         vision_capabilities:
+#           max_images: 5
+#           max_image_size_mb: 5
+#           supported_formats: ["jpg", "jpeg", "png", "gif", "webp"]
 #       - model_id: "claude-3-opus-20240229"
 #         task: "chat_smart"
 #         context_window: 200000
 #         supports_vision: true
+#         vision_capabilities:
+#           max_images: 5
+#           max_image_size_mb: 5
+#           supported_formats: ["jpg", "jpeg", "png", "gif", "webp"]
 # 
 #   # Tier 4: OpenRouter (access to exotic models)
 #   - id: "openrouter"
@@ -196,10 +220,19 @@ routing:
 #       - model_id: "anthropic/claude-3.5-sonnet"
 #         task: "chat_smart"
 #         context_window: 200000
+#         supports_vision: true
+#         vision_capabilities:
+#           max_images: 5
+#           max_image_size_mb: 5
+#           supported_formats: ["jpg", "jpeg", "png", "gif", "webp"]
 #       - model_id: "google/gemini-pro-1.5"
 #         task: "vision"
 #         context_window: 1000000
 #         supports_vision: true
+#         vision_capabilities:
+#           max_images: 16
+#           max_image_size_mb: 10
+#           supported_formats: ["jpg", "jpeg", "png", "gif", "webp"]
 # 
 # default_models:
 #   embedding: "nomic-embed-text"
@@ -246,6 +279,27 @@ cors_enabled: true
 # Features
 summarization_enabled: true
 pruning_enabled: true
+
+
+# ============================================
+# Vision Capabilities Reference
+# ============================================
+# Vision models support different capabilities:
+#
+# GPT-4o (OpenAI):
+#   max_images: 10
+#   max_image_size_mb: 20
+#   supported_formats: ["jpg", "jpeg", "png", "gif", "webp"]
+#
+# Claude 3 (Anthropic):
+#   max_images: 5
+#   max_image_size_mb: 5
+#   supported_formats: ["jpg", "jpeg", "png", "gif", "webp"]
+#
+# Gemini Pro 1.5 (Google via OpenRouter):
+#   max_images: 16
+#   max_image_size_mb: 10
+#   supported_formats: ["jpg", "jpeg", "png", "gif", "webp"]
 
 
 # ============================================
