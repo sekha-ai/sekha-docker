@@ -1,0 +1,6 @@
+# Minimal test dependencies for deployment validation
+# These tests validate docker-compose configs, Dockerfiles, and documentation
+# No service integration tests - those are in component repos
+
+pytest>=9.0.0
+pyyaml>=6.0
