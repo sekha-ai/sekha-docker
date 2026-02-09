@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to Sekha Docker deployment will be documented in this file.
+All notable changes to Sekha Docker deployments will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
@@ -8,75 +8,82 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.2.0] - 2026-02-10
 
 ### Added
-- **LLM Bridge service**: New required service for multi-provider routing
-- **OpenRouter configuration**: Easy setup for 400+ model access
-- **Provider health monitoring**: Circuit breakers and failover support
-- **Deployment validation tests**: Automated testing of docker-compose configuration
-- **Minimal test dependencies**: `requirements-test.txt` for CI/CD
+- **sekha-llm-bridge service**: New required component for multi-provider LLM routing
+- **OpenRouter support**: Access to 400+ models through single configuration
+- **Health monitoring**: Comprehensive health checks across all services
+- **Test infrastructure**: Deployment validation tests for CI/CD
+- **requirements-test.txt**: Minimal test dependencies for CI
 
 ### Changed
-- **BREAKING**: Proxy now requires Bridge service (new service added to compose)
-- **BREAKING**: Environment variable changes:
-  - Proxy: `LLM_URL` → `BRIDGE_URL`
-  - Proxy: `LLM_PROVIDER` removed
-  - Bridge: New service requires configuration
-- Updated docker-compose.prod.yml for v0.2.0 architecture
-- CI workflow now uses requirements-test.txt
-- Removed end-to-end Python tests (focus on deployment validation)
+- **Proxy configuration**: Updated environment variables (`LLM_URL` → `BRIDGE_URL`)
+- **Service dependencies**: Proxy now depends on bridge service
+- **Docker Compose structure**: Added bridge service with proper networking
+- **CI workflow**: Updated to use requirements-test.txt for consistent testing
+
+### Removed
+- **E2E Python tests**: Removed from docker repo (component repos have comprehensive tests)
 
 ### Fixed
-- Docker compose validation in CI
-- Service dependency ordering
-- Health check configurations
+- Test suite now focuses on deployment validation only
+- Removed unnecessary Python dependencies
+- Improved CI efficiency
+
+### Configuration Updates
+
+**docker-compose.prod.yml changes:**
+```yaml
+services:
+  sekha-proxy:
+    environment:
+      - BRIDGE_URL=http://sekha-bridge:5001  # Changed from LLM_URL
+      - PREFERRED_CHAT_MODEL=llama3.1:8b      # New
+      - PREFERRED_VISION_MODEL=gpt-4o         # New
+
+  sekha-bridge:  # New service
+    image: ghcr.io/sekha-ai/sekha-llm-bridge:latest
+    ports:
+      - "5001:5001"
+    environment:
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+```
 
 ### Deployment
 
-**New Service Architecture:**
+**Full stack now includes:**
+1. `sekha-controller` - Memory orchestration (Rust)
+2. `sekha-llm-bridge` - Multi-provider routing (Python + LiteLLM)
+3. `sekha-proxy` - Context injection (Python)
+4. `chroma` - Vector database
+5. `redis` - Cache layer
 
-```yaml
-services:
-  sekha-proxy:      # Port 8081 - Main API
-  sekha-bridge:     # Port 5001 - NEW: LLM routing
-  sekha-core:       # Port 8080 - Controller
-  chroma:           # Port 8000 - Vector DB
-  redis:            # Port 6379 - Cache
-  ollama:           # Port 11434 - Local models (optional)
-```
+### Testing
 
-**Required Environment Updates:**
-
+**Run deployment validation:**
 ```bash
-# Proxy .env updates
-BRIDGE_URL=http://sekha-bridge:5001  # Was: LLM_URL
-# Remove: LLM_PROVIDER
-
-# Bridge .env (new)
-OLLAMA_BASE_URL=http://ollama:11434
-OPENROUTER_API_KEY=sk-or-...  # Optional
-OPENROUTER_BASE_URL=https://openrouter.ai/api/v1
+pip install -r requirements-test.txt
+pytest tests/ -v
 ```
 
-### Technical
-- All deployment validation tests passing
-- Docker images building successfully
-- Security scans passing (Trivy, SBOM)
-- Full CI/CD pipeline validated
+**Validate Docker Compose:**
+```bash
+docker compose -f docker/docker-compose.prod.yml config
+```
 
 ## [0.1.0] - 2026-01-15
 
 ### Added
-- Initial release
-- Docker Compose configuration for full stack
-- Production-ready Dockerfiles
-- Health monitoring
-- Basic deployment scripts
-- Documentation
+- Initial deployment configuration
+- Docker Compose for full stack
+- Dockerfiles for all services
+- Basic CI/CD workflows
+- Documentation and README
+- Environment configuration examples
 
 ### Services
-- Sekha Proxy (Python/FastAPI)
-- Sekha Controller (Rust)
-- ChromaDB (Vector storage)
-- Redis (Caching)
+- sekha-controller (Rust)
+- sekha-proxy (Python)
+- chroma (Vector DB)
+- redis (Cache)
 
 [0.2.0]: https://github.com/sekha-ai/sekha-docker/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/sekha-ai/sekha-docker/releases/tag/v0.1.0
