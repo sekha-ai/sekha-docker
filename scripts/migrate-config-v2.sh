@@ -1,156 +1,248 @@
 #!/bin/bash
-# Migrate from v1.x config to v2.0
-# This script converts old environment variables and config files to the new multi-provider format
+# ============================================
+# Sekha v1.x to v2.0 Configuration Migration
+# ============================================
+# This script migrates old environment-based configuration
+# to the new v2.0 YAML format with provider registry.
 
-set -e
+set -e  # Exit on error
 
-COLOR_RESET="\033[0m"
-COLOR_BLUE="\033[34m"
-COLOR_GREEN="\033[32m"
-COLOR_YELLOW="\033[33m"
-COLOR_RED="\033[31m"
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
 
-echo -e "${COLOR_BLUE}🔄 Migrating Sekha Configuration to v2.0...${COLOR_RESET}"
+echo "================================================"
+echo "  Sekha v1.x → v2.0 Configuration Migration"
+echo "================================================"
 echo ""
 
-# Check if Python 3 is available
-if ! command -v python3 &> /dev/null; then
-    echo -e "${COLOR_RED}❌ Error: Python 3 is required but not installed${COLOR_RESET}"
+# Backup existing config
+BACKUP_DIR=".sekha-backups"
+mkdir -p "$BACKUP_DIR"
+BACKUP_FILE="$BACKUP_DIR/config-v1-$(date +%Y%m%d-%H%M%S).backup"
+
+if [ -f "config.yaml" ]; then
+    echo -e "${YELLOW}⚠️  Backing up existing config.yaml...${NC}"
+    cp config.yaml "$BACKUP_FILE"
+    echo -e "${GREEN}✓ Backup saved to: $BACKUP_FILE${NC}"
+    echo ""
+fi
+
+if [ -f ".env" ]; then
+    ENV_BACKUP="$BACKUP_DIR/.env-$(date +%Y%m%d-%H%M%S).backup"
+    cp .env "$ENV_BACKUP"
+    echo -e "${GREEN}✓ .env backed up to: $ENV_BACKUP${NC}"
+    echo ""
+fi
+
+# Load environment variables if .env exists
+if [ -f ".env" ]; then
+    echo "Loading environment variables from .env..."
+    set -a
+    source .env
+    set +a
+fi
+
+# Default values from v1.x
+OLLAMA_URL="${OLLAMA_URL:-http://localhost:11434}"
+EMBEDDING_MODEL="${EMBEDDING_MODEL:-nomic-embed-text}"
+SUMMARIZATION_MODEL="${SUMMARIZATION_MODEL:-llama3.1:8b}"
+SERVER_PORT="${SERVER_PORT:-8080}"
+CHROMA_URL="${CHROMA_URL:-http://localhost:8000}"
+LLM_BRIDGE_URL="${LLM_BRIDGE_URL:-http://localhost:5001}"
+DATABASE_URL="${DATABASE_URL:-sqlite://sekha.db}"
+MCP_API_KEY="${MCP_API_KEY:-}"
+
+# Display detected configuration
+echo "Detected v1.x configuration:"
+echo "  Ollama URL:         $OLLAMA_URL"
+echo "  Embedding Model:    $EMBEDDING_MODEL"
+echo "  Summarization:      $SUMMARIZATION_MODEL"
+echo "  Server Port:        $SERVER_PORT"
+echo ""
+
+# Prompt for confirmation
+read -p "Proceed with migration? (y/N): " -n 1 -r
+echo
+if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+    echo -e "${RED}Migration cancelled.${NC}"
     exit 1
 fi
 
-# Backup old config if it exists
-if [ -f "config.toml" ]; then
-    cp config.toml config.toml.v1.backup
-    echo -e "${COLOR_GREEN}✅ Backed up old config to config.toml.v1.backup${COLOR_RESET}"
+# Detect embedding dimension
+EMBED_DIMENSION=768
+if [[ "$EMBEDDING_MODEL" == *"3-large"* ]]; then
+    EMBED_DIMENSION=3072
+elif [[ "$EMBEDDING_MODEL" == *"3-small"* ]]; then
+    EMBED_DIMENSION=1536
 fi
 
-if [ -f "config.yaml" ]; then
-    cp config.yaml config.yaml.v1.backup
-    echo -e "${COLOR_GREEN}✅ Backed up old config to config.yaml.v1.backup${COLOR_RESET}"
-fi
+# Generate v2.0 config
+echo ""
+echo "Generating v2.0 configuration..."
 
-# Generate new config from environment or old config
-python3 << 'EOF'
-import os
-import sys
-import json
-import yaml
+cat > config.yaml << EOF
+# ============================================
+# Sekha v2.0 Configuration
+# Auto-migrated from v1.x on $(date)
+# ============================================
+# Original v1.x config backed up to: $BACKUP_FILE
 
-# Try to load old config formats
-old_config = {}
+version: "2.0"
 
-# Check for .env file
-if os.path.exists(".env"):
-    print("📄 Reading .env file...")
-    with open(".env", "r") as f:
-        for line in f:
-            line = line.strip()
-            if line and not line.startswith("#") and "=" in line:
-                key, value = line.split("=", 1)
-                old_config[key.lower()] = value.strip('"').strip("'")
+# ============================================
+# LLM Provider Registry
+# ============================================
+llm_providers:
+  - id: "ollama_migrated"
+    type: "ollama"
+    base_url: "$OLLAMA_URL"
+    priority: 1
+    timeout: 120
+    models:
+      - model_id: "$EMBEDDING_MODEL"
+        task: "embedding"
+        context_window: 8192
+        dimension: $EMBED_DIMENSION
+      - model_id: "$SUMMARIZATION_MODEL"
+        task: "chat_small"
+        context_window: 8192
+      - model_id: "$SUMMARIZATION_MODEL"
+        task: "chat_smart"
+        context_window: 8192
 
-# Check environment variables (override .env)
-for key in ["OLLAMA_URL", "SEKHA__OLLAMA_URL", "EMBEDDING_MODEL", "SUMMARIZATION_MODEL"]:
-    if key in os.environ:
-        old_config[key.lower()] = os.environ[key]
+# ============================================
+# Default Model Selections
+# ============================================
+default_models:
+  embedding: "$EMBEDDING_MODEL"
+  chat_fast: "$SUMMARIZATION_MODEL"
+  chat_smart: "$SUMMARIZATION_MODEL"
+  chat_vision: null
 
-# Try to load old TOML config
-try:
-    import tomli
-    if os.path.exists("config.toml"):
-        print("📄 Reading config.toml...")
-        with open("config.toml", "rb") as f:
-            toml_config = tomli.load(f)
-            old_config.update(toml_config)
-except ImportError:
-    pass  # TOML not available, use env vars only
+# ============================================
+# Routing Configuration
+# ============================================
+routing:
+  auto_fallback: true
+  require_vision_for_images: true
+  circuit_breaker:
+    failure_threshold: 3
+    timeout_secs: 60
+    success_threshold: 2
 
-# Extract relevant values with fallbacks
-ollama_url = old_config.get("ollama_url") or old_config.get("sekha__ollama_url") or "http://localhost:11434"
-embedding_model = old_config.get("embedding_model") or "nomic-embed-text"
-summarization_model = old_config.get("summarization_model") or "llama3.1:8b"
+# ============================================
+# Server Configuration
+# ============================================
+server_host: "0.0.0.0"
+server_port: $SERVER_PORT
+max_connections: 10
+log_level: "info"
 
-# Determine embedding dimension based on model
-embedding_dimension = 768  # Default for nomic-embed-text
-if "3-large" in embedding_model:
-    embedding_dimension = 3072
-elif "3-small" in embedding_model:
-    embedding_dimension = 1536
+# ============================================
+# Database Configuration
+# ============================================
+database_url: "$DATABASE_URL"
+chroma_url: "$CHROMA_URL"
+llm_bridge_url: "$LLM_BRIDGE_URL"
 
-# Generate new v2.0 config
-new_config = {
-    "config_version": "2.0",
-    "llm_providers": [
-        {
-            "id": "ollama_local",
-            "type": "ollama",
-            "base_url": ollama_url,
-            "api_key": None,
-            "priority": 1,
-            "models": [
-                {
-                    "model_id": embedding_model,
-                    "task": "embedding",
-                    "context_window": 512,
-                    "dimension": embedding_dimension
-                },
-                {
-                    "model_id": summarization_model,
-                    "task": "chat_small",
-                    "context_window": 8192
-                },
-                {
-                    "model_id": summarization_model,
-                    "task": "chat_smart",
-                    "context_window": 8192
-                }
-            ]
-        }
-    ],
-    "default_models": {
-        "embedding": embedding_model,
-        "chat_fast": summarization_model,
-        "chat_smart": summarization_model
-    },
-    "routing": {
-        "auto_fallback": True,
-        "require_vision_for_images": True,
-        "max_cost_per_request": None,
-        "circuit_breaker": {
-            "failure_threshold": 3,
-            "timeout_secs": 60,
-            "success_threshold": 2
-        }
-    }
-}
+# ============================================
+# API Security
+# ============================================
+mcp_api_key: "\${SEKHA_API_KEY}"
+rest_api_key: "\${SEKHA_API_KEY}"
+rate_limit_per_minute: 1000
+cors_enabled: true
 
-# Write new config.yaml
-with open("config.yaml", "w") as f:
-    yaml.dump(new_config, f, default_flow_style=False, sort_keys=False)
-
-print(f"\n✅ Generated new config.yaml")
-print(f"📋 Migrated settings:")
-print(f"   - Ollama URL: {ollama_url}")
-print(f"   - Embedding Model: {embedding_model} ({embedding_dimension} dimensions)")
-print(f"   - Chat Model: {summarization_model}")
-print(f"   - Providers: {len(new_config['llm_providers'])}")
+# ============================================
+# Features
+# ============================================
+summarization_enabled: true
+pruning_enabled: true
 
 EOF
 
-if [ $? -eq 0 ]; then
-    echo ""
-    echo -e "${COLOR_GREEN}✅ Migration complete!${COLOR_RESET}"
-    echo ""
-    echo -e "${COLOR_YELLOW}⚠️  Next steps:${COLOR_RESET}"
-    echo "   1. Review config.yaml and adjust as needed"
-    echo "   2. Add additional providers (OpenAI, Anthropic, etc.)"
-    echo "   3. Update environment variables for your deployment"
-    echo "   4. Restart Sekha services"
-    echo ""
-    echo -e "${COLOR_BLUE}📖 Documentation:${COLOR_RESET} https://docs.sekha.dev/configuration/v2-migration"
-    echo ""
-else
-    echo -e "${COLOR_RED}❌ Migration failed${COLOR_RESET}"
-    exit 1
-fi
+echo -e "${GREEN}✓ Generated config.yaml${NC}"
+echo ""
+
+# Generate updated .env template
+cat > .env.v2.example << 'EOF'
+# ============================================
+# Sekha v2.0 Environment Variables
+# ============================================
+# Copy to .env and customize
+
+# Required: API Key for authentication
+SEKHA_API_KEY="your-secure-api-key-minimum-32-characters-long"
+
+# Optional: Cloud provider API keys (if using multi-provider setup)
+# OPENAI_API_KEY="sk-..."
+# ANTHROPIC_API_KEY="sk-ant-..."
+# OPENROUTER_API_KEY="sk-or-..."
+
+# Optional: Override any config.yaml setting
+# SEKHA__SERVER_PORT=8081
+# SEKHA__LOG_LEVEL=debug
+EOF
+
+echo -e "${GREEN}✓ Generated .env.v2.example${NC}"
+echo ""
+
+# Create migration summary
+MIGRATION_SUMMARY="$BACKUP_DIR/migration-summary-$(date +%Y%m%d-%H%M%S).txt"
+cat > "$MIGRATION_SUMMARY" << EOF
+Sekha v1.x → v2.0 Migration Summary
+====================================
+Date: $(date)
+
+Migrated Configuration:
+-----------------------
+Provider:          Ollama (ollama_migrated)
+Base URL:          $OLLAMA_URL
+Embedding Model:   $EMBEDDING_MODEL (dimension: $EMBED_DIMENSION)
+Chat Model:        $SUMMARIZATION_MODEL
+
+New Files:
+----------
+✓ config.yaml         - v2.0 configuration with provider registry
+✓ .env.v2.example     - Example environment variables
+
+Backups:
+--------
+✓ $BACKUP_FILE
+$([ -f "$ENV_BACKUP" ] && echo "✓ $ENV_BACKUP" || echo "")
+
+Next Steps:
+-----------
+1. Review config.yaml and adjust as needed
+2. Update .env with required API keys (SEKHA_API_KEY)
+3. Add additional providers if desired (see config.yaml.example)
+4. Restart Sekha services
+
+Rollback:
+---------
+To rollback to v1.x configuration:
+  cp $BACKUP_FILE config.yaml
+  $([ -f "$ENV_BACKUP" ] && echo "cp $ENV_BACKUP .env" || echo "")
+
+Documentation:
+--------------
+See config.yaml.example for multi-provider setup examples
+See sekha-config-schema.json for full configuration reference
+EOF
+
+echo "================================================"
+echo -e "${GREEN}✓ Migration Complete!${NC}"
+echo "================================================"
+echo ""
+echo "Summary saved to: $MIGRATION_SUMMARY"
+echo ""
+echo "Next steps:"
+echo "  1. Review config.yaml"
+echo "  2. Set SEKHA_API_KEY in .env (minimum 32 characters)"
+echo "  3. Restart Sekha services: docker-compose up -d"
+echo ""
+echo "To rollback: cp $BACKUP_FILE config.yaml"
+echo ""
+cat "$MIGRATION_SUMMARY"
