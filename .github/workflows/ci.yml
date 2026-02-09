@@ -38,11 +38,11 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Install dependencies
+      - name: Install test dependencies
         run: |
-          pip install pytest pyyaml
+          pip install -r requirements-test.txt
 
-      - name: Run Python tests
+      - name: Run deployment validation tests
         run: |
           pytest tests/ -v
         
@@ -131,4 +131,4 @@ jobs:
             echo "❌ Deployment script tests failed"
             exit 1
           fi
-          echo "✅ All deployment tests passed!"          
+          echo "✅ All deployment tests passed!"
