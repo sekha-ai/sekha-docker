@@ -142,6 +142,7 @@ services:
       - ./chroma-data:/data
     environment:
       - IS_PERSISTENT=TRUE
+      - PERSIST_DIRECTORY=/data
       - ANONYMIZED_TELEMETRY=FALSE
     restart: unless-stopped
 
