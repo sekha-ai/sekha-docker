@@ -1,5 +1,4 @@
-# Production Docker Compose for Sekha Stack v0.2.0
-# Merged configuration: v2 bridge env vars + working chroma config
+# Production Docker Compose for Sekha Stack
 
 name: sekha
 
@@ -30,7 +29,7 @@ services:
       - SEKHA__SUMMARIZATION_MODEL=${SUMMARIZATION_MODEL:-llama3.1:8b}      
     depends_on:
       chroma:
-        condition: service_healthy
+        condition: service_started
       redis:
         condition: service_healthy
       sekha-bridge:
@@ -58,25 +57,14 @@ services:
     expose:
       - "5001"
     environment:
-      # v0.2.0 configuration with SEKHA__ prefix
-      - HOST=0.0.0.0
-      - PORT=5001
-      - LOG_LEVEL=${LOG_LEVEL:-info}
-      
-      # Ollama provider (backward compatibility)
       - OLLAMA_BASE_URL=${OLLAMA_URL:-http://host.docker.internal:11434}
-      
-      # Redis connection
       - REDIS_URL=redis://redis:6379/0
-      
-      # Optional: Add provider configuration as JSON if needed
-      # - SEKHA__LLM_PROVIDERS=${LLM_PROVIDERS:-}
-      # - SEKHA__DEFAULT_MODELS=${DEFAULT_MODELS:-}
     depends_on:
       redis:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5001/health"]
+    #  test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5001/health')"]
       interval: 30s
       timeout: 5s
       start_period: 20s
@@ -91,7 +79,7 @@ services:
           memory: 512M
           cpus: '0.5'
 
-  # Sekha Proxy with Web UI and Context Injection
+  # NEW: Sekha Proxy with Web UI and Context Injection
   sekha-proxy:
     extra_hosts:
       - "host.docker.internal:host-gateway"
@@ -143,16 +131,13 @@ services:
 
   chroma:
     image: chromadb/chroma:latest
-    expose:
-      - "8000"
+    ports:
+      - "${CHROMA_PORT:-8000}:8000"
     volumes:
-      - chroma-data:/chroma/chroma
-    # NO environment variables - they break the persistence path
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/heartbeat"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+      - ./chroma-data:/data
+    environment:
+      - IS_PERSISTENT=TRUE
+      - ANONYMIZED_TELEMETRY=FALSE
     restart: unless-stopped
 
   redis:
@@ -160,7 +145,7 @@ services:
     expose:
       - "6379"
     volumes:
-      - redis-data:/data
+      - ./redis-data:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -170,8 +155,5 @@ services:
 
 volumes:
   sekha-data:
-    driver: local
   chroma-data:
-    driver: local
   redis-data:
-    driver: local
