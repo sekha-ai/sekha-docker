@@ -135,14 +135,13 @@ services:
           cpus: '0.1'
 
   chroma:
-    image: chromadb/chroma:latest
+    image: chromadb/chroma:0.4.24
     ports:
       - "${CHROMA_PORT:-8000}:8000"
     volumes:
-      - ./chroma-data:/data
+      - ./chroma-data:/chroma/chroma
     environment:
       - IS_PERSISTENT=TRUE
-      - PERSIST_DIRECTORY=/data
       - ANONYMIZED_TELEMETRY=FALSE
     restart: unless-stopped
 
