@@ -323,19 +323,69 @@ jobs:
       - name: Setup config files
         working-directory: sekha-docker/docker
         run: |
-          # Create config.prod.toml if sekha-controller requires it
+          # Create v0.2.0 config.prod.toml with FLAT structure (no sections)
           cat > config.prod.toml << 'EOF'
-          [server]
-          host = "0.0.0.0"
-          port = 8080
+          # Sekha Controller Configuration - v0.2.0
+          config_version = "v0.2.0"
           
-          [database]
-          url = "sqlite:///data/sekha.db"
+          # Server settings
+          server_host = "0.0.0.0"
+          server_port = 8080
           
-          [llm]
+          # API keys
+          mcp_api_key = "test_key_12345678901234567890123456789012"
+          rest_api_key = "test_key_123"
+          
+          # Storage
+          database_url = "sqlite:///data/sekha.db"
+          chroma_url = "http://chroma:8000"
+          llm_bridge_url = "http://sekha-bridge:5001"
+          
+          # System
+          max_connections = 10
+          log_level = "info"
+          summarization_enabled = true
+          pruning_enabled = true
+          rate_limit_per_minute = 1000
+          cors_enabled = true
+          
+          # Legacy v0.1.x settings (for auto-migration)
           ollama_url = "http://ollama:11434"
-          bridge_url = "http://sekha-bridge:5001"
+          embedding_model = "nomic-embed-text:latest"
+          summarization_model = "llama3.1:8b"
+          
+          # V0.2.0 provider configuration
+          [[llm_providers]]
+          id = "ollama_ci"
+          type = "ollama"
+          base_url = "http://ollama:11434"
+          timeout_secs = 120
+          priority = 1
+          
+          [[llm_providers.models]]
+          model_id = "nomic-embed-text:latest"
+          task = "embedding"
+          context_window = 512
+          dimension = 768
+          
+          [[llm_providers.models]]
+          model_id = "llama3.1:8b"
+          task = "chat_small"
+          context_window = 8192
+          
+          [[llm_providers.models]]
+          model_id = "llama3.1:8b"
+          task = "chat_smart"
+          context_window = 8192
+          
+          [default_models]
+          embedding = "nomic-embed-text:latest"
+          chat_fast = "llama3.1:8b"
+          chat_smart = "llama3.1:8b"
           EOF
+          
+          echo "✅ Created v0.2.0 flat TOML config"
+          cat config.prod.toml
           
           mkdir -p ./data ./chroma-data ./redis-data          
 
