@@ -4,6 +4,8 @@ on:
   push:
     tags:
       - 'v*'
+  release:
+    types: [published]
   workflow_dispatch:
 
 env:
@@ -35,6 +37,7 @@ jobs:
         with:
           repository: sekha-ai/sekha-controller
           path: sekha-controller
+          ref: ${{ github.event.release.tag_name || github.ref_name }}
           
       - name: Override rust-toolchain for cross-compilation
         if: matrix.target != 'x86_64-unknown-linux-gnu' && matrix.os == 'ubuntu-latest'
@@ -178,6 +181,7 @@ jobs:
         with:
           repository: sekha-ai/sekha-controller
           path: sekha-controller
+          ref: ${{ github.event.release.tag_name || github.ref_name }}
 
       - name: Checkout sekha-llm-bridge
         if: matrix.component == 'llm-bridge'
@@ -185,6 +189,7 @@ jobs:
         with:
           repository: sekha-ai/sekha-llm-bridge
           path: sekha-llm-bridge
+          ref: ${{ github.event.release.tag_name || github.ref_name }}
 
       - name: Checkout sekha-proxy
         if: matrix.component == 'proxy'
@@ -192,6 +197,7 @@ jobs:
         with:
           repository: sekha-ai/sekha-proxy
           path: sekha-proxy
+          ref: ${{ github.event.release.tag_name || github.ref_name }}
       
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -257,18 +263,21 @@ jobs:
         with:
           repository: sekha-ai/sekha-controller
           path: sekha-controller
+          ref: ${{ github.event.release.tag_name || github.ref_name }}
 
       - name: Checkout sekha-llm-bridge
         uses: actions/checkout@v6
         with:
           repository: sekha-ai/sekha-llm-bridge
           path: sekha-llm-bridge
+          ref: ${{ github.event.release.tag_name || github.ref_name }}
 
       - name: Checkout sekha-proxy
         uses: actions/checkout@v6
         with:
           repository: sekha-ai/sekha-proxy
           path: sekha-proxy
+          ref: ${{ github.event.release.tag_name || github.ref_name }}
       
       - name: Install Syft
         run: |
@@ -473,7 +482,7 @@ jobs:
   create-release:
     name: Create GitHub Release
     runs-on: ubuntu-latest
-    # Only run on tag pushes, not manual workflow_dispatch
+    # Only run on tag pushes, not release events (to avoid duplicate releases)
     if: startsWith(github.ref, 'refs/tags/')
     needs: [build-rust-binary, build-docker-images, generate-sbom, integration-tests]
     permissions:
