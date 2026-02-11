@@ -10,7 +10,7 @@ services:
     ports:
       - "${SEKHA_PORT:-8080}:8080"
     volumes:
-      - ./data:/data
+      - sekha-data:/data
       - ./config.prod.toml:/app/config.toml:ro
     environment:
       - RUST_LOG=info
@@ -140,7 +140,7 @@ services:
     ports:
       - "${CHROMA_PORT:-8000}:8000"
     volumes:
-      - ./chroma-data:/chroma/chroma
+      - chroma-data:/chroma/chroma
     environment:
       - IS_PERSISTENT=TRUE
       - ANONYMIZED_TELEMETRY=FALSE
@@ -151,7 +151,7 @@ services:
     expose:
       - "6379"
     volumes:
-      - ./redis-data:/data
+      - redis-data:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
