@@ -136,7 +136,7 @@ services:
           cpus: '0.1'
 
   chroma:
-    image: chromadb/chroma:0.4.24
+    image: chromadb/chroma:1.5.0
     ports:
       - "${CHROMA_PORT:-8000}:8000"
     volumes:
