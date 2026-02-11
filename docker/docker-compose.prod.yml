@@ -57,19 +57,22 @@ services:
     expose:
       - "5001"
     environment:
-      # v0.2.0: Add missing env vars
+      # v2.0: Bridge configuration
       - HOST=0.0.0.0
       - PORT=5001
       - LOG_LEVEL=${LOG_LEVEL:-info}
-      # Original config:
+      # Model configuration (required for v2.0)
       - OLLAMA_BASE_URL=${OLLAMA_URL:-http://host.docker.internal:11434}
+      - EMBEDDING_MODEL=${EMBEDDING_MODEL:-nomic-embed-text}
+      - CHAT_MODEL=${CHAT_MODEL:-llama3.1:8b}
+      - VISION_MODEL=${VISION_MODEL:-}
+      # Redis for circuit breakers and rate limiting
       - REDIS_URL=redis://redis:6379/0
     depends_on:
       redis:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5001/health"]
-    #  test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5001/health')"]
       interval: 30s
       timeout: 5s
       start_period: 20s
@@ -98,21 +101,19 @@ services:
       
       # Controller connection
       - CONTROLLER_URL=http://sekha-core:8080
-      - CONTROLLER_API_KEY=${SEKHA_API_KEY:-changeme}
+      - CONTROLLER_API_KEY=${MCP_API_KEY}
       - CONTROLLER_TIMEOUT=30
       
-      # LLM connection (uses bridge)
-      - LLM_PROVIDER=bridge
-      - LLM_URL=http://sekha-bridge:5001
-      - LLM_MODEL=${LLM_MODEL:-llama2}
+      # LLM Bridge connection (v2.0)
+      - LLM_BRIDGE_URL=http://sekha-bridge:5001
       - LLM_TIMEOUT=120
       
       # Memory settings
-      - MEMORY_AUTO_INJECT_CONTEXT=${AUTO_INJECT_CONTEXT:-true}
-      - MEMORY_DEFAULT_FOLDER=${DEFAULT_FOLDER:-/work}
-      - MEMORY_CONTEXT_TOKEN_BUDGET=${CONTEXT_BUDGET:-4000}
-      - MEMORY_PREFERRED_LABELS=${PREFERRED_LABELS:-}
-      - MEMORY_EXCLUDED_FOLDERS=${EXCLUDED_FOLDERS:-}
+      - AUTO_INJECT_CONTEXT=${AUTO_INJECT_CONTEXT:-true}
+      - DEFAULT_FOLDER=${DEFAULT_FOLDER:-/work}
+      - CONTEXT_TOKEN_BUDGET=${CONTEXT_BUDGET:-4000}
+      - PREFERRED_LABELS=${PREFERRED_LABELS:-}
+      - EXCLUDED_FOLDERS=${EXCLUDED_FOLDERS:-}
     depends_on:
       sekha-core:
         condition: service_healthy
