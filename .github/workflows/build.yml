@@ -102,7 +102,7 @@ jobs:
           output-file: sbom-controller.spdx.json
       
       - name: Upload SBOM
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: sbom-controller
           path: sbom-controller.spdx.json
