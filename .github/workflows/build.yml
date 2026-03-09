@@ -52,7 +52,7 @@ jobs:
       
       - name: Extract metadata (tags, labels) for controller
         id: meta-controller
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_CONTROLLER }}
           tags: |
@@ -65,7 +65,7 @@ jobs:
       
       - name: Extract metadata (tags, labels) for bridge
         id: meta-bridge
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_BRIDGE }}
           tags: |
